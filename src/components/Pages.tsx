@@ -8,7 +8,7 @@ import type {
   ActivityRow as ActivityData, AutomationRule as AutomationRuleData, AutomationRun as AutomationRunData, DealRow, Invitation, LeadRow, LeadStatus, Member, OrgInfo, Stage, TaskStatus, TaskView
 } from "../types";
 
-export type Page = "dashboard" | "leads" | "pipeline" | "tasks" | "automation" | "assistant" | "settings";
+export type Page = "dashboard" | "leads" | "pipeline" | "tasks" | "agenda" | "invoices" | "automation" | "assistant" | "settings";
 
 export const money = (n: number) =>
   new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
@@ -20,7 +20,7 @@ const PRIORITY_LABELS = { high: "Haute", normal: "Normale", low: "Basse" } as co
 const ROLE_LABELS = { owner: "Propriétaire", admin: "Administrateur", sales: "Commercial" } as const;
 const CLOSED_STAGES = ["Gagné", "Perdu"];
 
-function PageHeading({ eyebrow, title, desc, action }: { eyebrow: string; title: string; desc: string; action?: ReactNode }) {
+export function PageHeading({ eyebrow, title, desc, action }: { eyebrow: string; title: string; desc: string; action?: ReactNode }) {
   return (
     <div className="page-heading">
       <div><div className="eyebrow">{eyebrow}</div><h1>{title}</h1><p>{desc}</p></div>
@@ -28,7 +28,7 @@ function PageHeading({ eyebrow, title, desc, action }: { eyebrow: string; title:
     </div>
   );
 }
-function Kpi({ label, value, change, icon, alert = false }: { label: string; value: string; change: string; icon: ReactNode; alert?: boolean }) {
+export function Kpi({ label, value, change, icon, alert = false }: { label: string; value: string; change: string; icon: ReactNode; alert?: boolean }) {
   return (
     <div className="kpi-card">
       <div className="kpi-top"><span>{label}</span><div className={`kpi-icon ${alert ? "red" : ""}`}>{icon}</div></div>
@@ -234,6 +234,16 @@ function runSummary(r: AutomationRunData): string {
   if (r.event_key.startsWith("stale:")) return "Tâche de relance créée";
   if (r.event_key.startsWith("contact:")) return "Tâche de premier contact créée";
   if (r.event_key.startsWith("opp:")) return "Changement d'étape tracé";
+  if (r.event_key.startsWith("make:")) {
+    const types: Record<string, string> = {
+      contact: "prospect", lead: "prospect", prospect: "prospect", company: "entreprise", empresa: "entreprise", entreprise: "entreprise",
+      opportunity: "opportunité", deal: "opportunité", oportunidad: "opportunité", opportunite: "opportunité",
+      appointment: "rendez-vous", cita: "rendez-vous", rdv: "rendez-vous", "rendez-vous": "rendez-vous", meeting: "rendez-vous",
+      invoice: "facture", factura: "facture", facture: "facture"
+    };
+    const t = types[String(r.details?.type ?? "")] ?? "élément";
+    return `Import Make : ${t} ${r.details?.action === "updated" ? "mis à jour" : "ajouté"}`;
+  }
   return "Exécutée";
 }
 
@@ -277,7 +287,7 @@ export function Automation({ rules, runs, canEdit, onToggle }: {
               {runs.map(r => (
                 <tr key={r.id}>
                   <td>{new Date(r.created_at).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}</td>
-                  <td>{ruleName(r.rule_id)}</td>
+                  <td>{r.event_key.startsWith("make:") ? "Intégration Make" : ruleName(r.rule_id)}</td>
                   <td><span className={`status ${r.status === "failed" ? "lost" : "qualified"}`}>{runSummary(r)}</span></td>
                 </tr>
               ))}
@@ -314,10 +324,10 @@ export function Assistant() {
   );
 }
 
-export function SettingsPage({ org, email, members, invitations, currentUserId, canInvite, busy, onInvite, onRevoke, onSignOut, canExport, onExport }: {
+export function SettingsPage({ org, email, members, invitations, currentUserId, canInvite, busy, onInvite, onRevoke, onSignOut, canExport, onExport, integration }: {
   org: OrgInfo; email: string; members: Member[]; invitations: Invitation[]; currentUserId: string; canInvite: boolean;
   busy: boolean; onInvite: (email: string, role: "admin" | "sales") => Promise<string | null>;
-  onRevoke: (id: string) => void; onSignOut: () => void; canExport: boolean; onExport: () => void;
+  onRevoke: (id: string) => void; onSignOut: () => void; canExport: boolean; onExport: () => void; integration?: ReactNode;
 }) {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"admin" | "sales">("sales");
@@ -385,6 +395,7 @@ export function SettingsPage({ org, email, members, invitations, currentUserId, 
           )}
         </section>
       )}
+      {integration}
       <section className="panel invite-panel">
         <div className="panel-head"><div><h3>Données personnelles</h3>
           <p>Vos droits d'accès, de portabilité et d'effacement. Consultez la <a href="#/confidentialite">politique de confidentialité</a>.</p></div></div>

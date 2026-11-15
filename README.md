@@ -41,3 +41,17 @@ Application React + TypeScript + Vite, reliée à Supabase (authentification et 
 - En-têtes de sécurité Netlify (`public/_headers`).
 
 **À faire avant usage commercial** : compléter `legal.config.ts`, faire valider les textes par un juriste, signer un contrat de sous-traitance (art. 28) avec chaque client, tenir un registre des traitements. Non inclus : suppression de compte en libre-service (nécessite une Edge Function), politique de mot de passe renforcée (plan payant Supabase).
+
+
+## Version 0.5.0 — Agenda, factures et intégration Make
+
+**Base de données (déjà appliquée sur Supabase)** : `supabase/migration_v0_5_make_integration.sql`
+(si vous recréez un projet : l'exécuter après migration_v0_4_automations).
+- **Agenda** : rendez-vous par semaine, rendez-vous urgents mis en avant (badge dans le menu + alerte sur la vue d'ensemble).
+- **Factures** : à payer / en retard / payées, total à encaisser, encaissé du mois.
+- **Temps réel** : les données ajoutées par Make ou par un collègue apparaissent sans recharger la page.
+- **Intégration Make** (Paramètres, propriétaire/administrateur) : une clé par organisation (stockée hachée, affichée une seule fois).
+  Make appelle `POST {VITE_SUPABASE_URL}/rest/v1/rpc/make_ingest` avec l'en-tête `apikey` (clé publishable) et le corps
+  `{"p_token": "...", "p_type": "contact|company|opportunity|appointment|invoice", "p_data": {...}}`.
+  Dédoublonnage : `external_id`, puis email (contacts), nom (entreprises) ou numéro (factures).
+  Chaque appel est journalisé dans la page Automatisations.

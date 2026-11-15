@@ -1,6 +1,6 @@
 import { supabase } from "./supabase";
 import type {
-  ActivityRow, AutomationRule, AutomationRun, Company, Contact, Invitation, LeadStatus, Member, OrgInfo, Opportunity, Role, Stage,
+  ActivityRow, Appointment, AppointmentStatus, AutomationRule, AutomationRun, Company, IntegrationInfo, Invoice, InvoiceStatus, Contact, Invitation, LeadStatus, Member, OrgInfo, Opportunity, Role, Stage,
   TaskPriority, TaskRow, TaskStatus, Workspace
 } from "../types";
 
@@ -55,7 +55,15 @@ export async function loadWorkspace(orgId: string): Promise<Workspace> {
   const rulesRes = await c.from("automation_rules").select("*").eq("organization_id", orgId).order("code");
   const runsRes = await c.from("automation_runs").select("*").eq("organization_id", orgId)
     .order("created_at", { ascending: false }).limit(12);
+  // Rendez-vous et factures : tables ajoutées par la migration v0.5 (erreur ignorée si absentes)
+  const since = new Date(); since.setDate(since.getDate() - 120);
+  const apptRes = await c.from("appointments").select("*").eq("organization_id", orgId)
+    .gte("starts_at", since.toISOString()).order("starts_at").limit(2000);
+  const invRes2 = await c.from("invoices").select("*").eq("organization_id", orgId)
+    .order("due_at", { ascending: true, nullsFirst: false }).limit(2000);
   return {
+    appointments: (apptRes.error ? [] : (apptRes.data ?? [])) as Appointment[],
+    invoices: ((invRes2.error ? [] : (invRes2.data ?? [])) as any[]).map((i: any) => ({ ...i, amount: Number(i.amount) })) as Invoice[],
     rules: (rulesRes.error ? [] : (rulesRes.data ?? [])) as AutomationRule[],
     runs: (runsRes.error ? [] : (runsRes.data ?? [])) as AutomationRun[],
     invitations: (invRes.error ? [] : (invRes.data ?? [])) as Invitation[],
@@ -170,7 +178,7 @@ export async function deleteContact(id: string) {
 // RGPD : export complet des données de l'organisation (droit d'accès / portabilité)
 export async function exportOrganization(orgId: string): Promise<Blob> {
   const c = db();
-  const tables = ["companies", "contacts", "pipeline_stages", "opportunities", "tasks", "activities", "automation_rules", "automation_runs"];
+  const tables = ["companies", "contacts", "pipeline_stages", "opportunities", "tasks", "activities", "appointments", "invoices", "automation_rules", "automation_runs"];
   const out: Record<string, unknown> = { exported_at: new Date().toISOString(), organization_id: orgId };
   for (const t of tables) {
     const { data, error } = await c.from(t).select("*").eq("organization_id", orgId);
@@ -178,4 +186,59 @@ export async function exportOrganization(orgId: string): Promise<Blob> {
     out[t] = data ?? [];
   }
   return new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+}
+
+// ----- Rendez-vous -----
+export async function addAppointment(
+  orgId: string, userId: string,
+  input: { title: string; date: string; start: string; end: string; location: string; notes: string; urgent: boolean; contactId: string | null }
+) {
+  const startsAt = new Date(`${input.date}T${input.start || "09:00"}`);
+  const endsAt = input.end ? new Date(`${input.date}T${input.end}`) : null;
+  unwrap(
+    await db().from("appointments").insert({
+      organization_id: orgId, title: input.title.trim(), starts_at: startsAt.toISOString(),
+      ends_at: endsAt ? endsAt.toISOString() : null, location: input.location.trim() || null,
+      notes: input.notes.trim() || null, urgent: input.urgent, contact_id: input.contactId,
+      owner_id: userId, source: "Saisie manuelle"
+    })
+  );
+}
+
+export async function setAppointmentStatus(id: string, status: AppointmentStatus) {
+  unwrap(await db().from("appointments").update({ status }).eq("id", id));
+}
+
+// ----- Factures -----
+export async function addInvoice(
+  orgId: string,
+  input: { number: string; clientName: string; amount: number; issuedAt: string; dueAt: string; status: InvoiceStatus }
+) {
+  unwrap(
+    await db().from("invoices").insert({
+      organization_id: orgId, number: input.number.trim() || null, client_name: input.clientName.trim() || null,
+      amount: input.amount, issued_at: input.issuedAt || null, due_at: input.dueAt || null,
+      status: input.status, source: "Saisie manuelle"
+    })
+  );
+}
+
+export async function setInvoiceStatus(id: string, status: InvoiceStatus) {
+  unwrap(await db().from("invoices").update({ status }).eq("id", id));
+}
+
+// ----- Intégration Make (clé par organisation) -----
+export async function getIntegrationInfo(orgId: string): Promise<IntegrationInfo> {
+  const { data, error } = await db().rpc("integration_token_info", { p_org: orgId });
+  if (error) return null;
+  const rows = (data ?? []) as { token_hint: string; created_at: string; last_used_at: string | null }[];
+  return rows[0] ?? null;
+}
+
+export async function createIntegrationToken(orgId: string): Promise<string> {
+  return unwrap(await db().rpc("create_integration_token", { p_org: orgId })) as string;
+}
+
+export async function revokeIntegrationToken(orgId: string) {
+  unwrap(await db().rpc("revoke_integration_token", { p_org: orgId }));
 }

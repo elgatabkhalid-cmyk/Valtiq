@@ -1,21 +1,25 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
-  Activity, Bot, CalendarClock, ChevronDown, LayoutDashboard, LogOut, Menu, Search, Settings, Target, Users, X
+  Activity, AlertTriangle, Bot, CalendarClock, CalendarDays, ChevronDown, LayoutDashboard, LogOut, Menu, Receipt, Search, Settings, Target, Users, X
 } from "lucide-react";
-import { supabase, supabaseConfigured } from "./lib/supabase";
+import { supabase, supabaseConfigured, supabaseKey, supabaseUrl } from "./lib/supabase";
 import {
   acceptInvitations, addLead, addOpportunity, addTask, createOrganization, deleteContact, errMsg, exportOrganization, inviteMember, listMemberships,
-  loadWorkspace, moveOpportunity, revokeInvitation, setRuleEnabled, setTaskStatus, updateContactStatus
+  loadWorkspace, moveOpportunity, revokeInvitation, setRuleEnabled, setTaskStatus, updateContactStatus,
+  addAppointment, addInvoice, createIntegrationToken, getIntegrationInfo, revokeIntegrationToken, setAppointmentStatus, setInvoiceStatus
 } from "./lib/api";
 import { emptyWorkspace } from "./types";
-import type { DealRow, LeadRow, LeadStatus, OrgInfo, TaskStatus, TaskView, Workspace } from "./types";
+import type {
+  AppointmentStatus, DealRow, IntegrationInfo, Invoice, InvoiceStatus, LeadRow, LeadStatus, OrgInfo, TaskStatus, TaskView, Workspace
+} from "./types";
 import { AuthScreen, ConfigMissing, Loading, Onboarding } from "./components/AuthScreens";
-import { DealForm, LeadForm, Modal, TaskForm } from "./components/Modals";
+import { AppointmentForm, DealForm, InvoiceForm, LeadForm, Modal, TaskForm } from "./components/Modals";
+import { Agenda, Invoices, MakeIntegration, isOverdue, upcomingUrgent } from "./components/Business";
 import { Assistant, Automation, Dashboard, Leads, Pipeline, SettingsPage, Tasks } from "./components/Pages";
 import type { Page } from "./components/Pages";
 
-type ModalKind = "lead" | "task" | "deal" | null;
+type ModalKind = "lead" | "task" | "deal" | "appointment" | "invoice" | null;
 type Notice = { text: string; error: boolean } | null;
 
 const CLOSED_STAGES = ["Gagné", "Perdu"];
@@ -31,6 +35,9 @@ export default function App() {
   const [mobileNav, setMobileNav] = useState(false);
   const [notice, setNotice] = useState<Notice>(null);
   const [busy, setBusy] = useState(false);
+  const [apptDate, setApptDate] = useState<string | undefined>(undefined);
+  const [integration, setIntegration] = useState<IntegrationInfo>(null);
+  const [newToken, setNewToken] = useState<string | null>(null);
 
   const user = session?.user;
   const userId = user?.id;
@@ -66,6 +73,29 @@ export default function App() {
     catch (e) { setNotice({ text: errMsg(e), error: true }); }
   }, [orgId]);
   useEffect(() => { refresh(); }, [refresh]);
+
+  // Temps réel : toute modification (application, autre utilisateur, Make) recharge les données
+  const refreshRef = useRef(refresh);
+  refreshRef.current = refresh;
+  useEffect(() => {
+    if (!supabase || !orgId) return;
+    const client = supabase;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const schedule = () => { clearTimeout(timer); timer = setTimeout(() => { void refreshRef.current(); }, 400); };
+    const channel = client.channel(`org-${orgId}`);
+    for (const table of ["contacts", "companies", "opportunities", "tasks", "appointments", "invoices", "activities", "automation_runs"]) {
+      channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `organization_id=eq.${orgId}` }, schedule);
+    }
+    channel.subscribe();
+    return () => { clearTimeout(timer); void client.removeChannel(channel); };
+  }, [orgId]);
+
+  // Clé d'intégration Make : on oublie la clé affichée quand on change d'organisation
+  useEffect(() => { setIntegration(null); setNewToken(null); }, [orgId]);
+  const loadIntegration = useCallback(async () => {
+    if (!orgId) return;
+    setIntegration(await getIntegrationInfo(orgId));
+  }, [orgId]);
 
   // Exécute une action, recharge les données, renvoie un message d'erreur ou null
   async function run(action: () => Promise<void>, success?: string): Promise<string | null> {
@@ -138,6 +168,9 @@ export default function App() {
   }, [ws.tasks, contactName, nameOf]);
 
   const overdue = taskViews.filter(t => t.overdue).length;
+  const urgentAppts = useMemo(() => upcomingUrgent(ws.appointments), [ws.appointments]);
+  const overdueInvoices = useMemo(() => ws.invoices.filter(isOverdue), [ws.invoices]);
+  const invoiceClient = useCallback((i: Invoice) => i.client_name || companyName(i.company_id) || contactName(i.contact_id), [companyName, contactName]);
   const openStageIds = useMemo(
     () => new Set(ws.stages.filter(s => !CLOSED_STAGES.includes(s.name)).map(s => s.id)), [ws.stages]);
   const pipelineValue = dealRows.filter(d => d.stageId && openStageIds.has(d.stageId)).reduce((s, d) => s + d.amount, 0);
@@ -183,6 +216,28 @@ export default function App() {
     finally { setBusy(false); }
   };
   const onLeadStatus = (id: string, status: LeadStatus) => { void run(() => updateContactStatus(id, status)); };
+  const onAddAppointment = (v: Parameters<typeof addAppointment>[2]) =>
+    run(async () => { if (orgId && userId) await addAppointment(orgId, userId, v); }, "Rendez-vous créé.")
+      .then(err => { if (!err) setModal(null); return err; });
+  const onAddInvoice = (v: Parameters<typeof addInvoice>[1]) =>
+    run(async () => { if (orgId) await addInvoice(orgId, v); }, "Facture créée.")
+      .then(err => { if (!err) setModal(null); return err; });
+  const onApptStatus = (id: string, status: AppointmentStatus) => { void run(() => setAppointmentStatus(id, status)); };
+  const onInvoiceStatus = (id: string, status: InvoiceStatus) => { void run(() => setInvoiceStatus(id, status)); };
+  const onGenerateToken = async () => {
+    if (!orgId) return;
+    setBusy(true);
+    try { setNewToken(await createIntegrationToken(orgId)); await loadIntegration(); }
+    catch (e) { setNotice({ text: errMsg(e), error: true }); }
+    finally { setBusy(false); }
+  };
+  const onRevokeToken = async () => {
+    if (!orgId) return;
+    setBusy(true);
+    try { await revokeIntegrationToken(orgId); setNewToken(null); await loadIntegration(); setNotice({ text: "Clé d'intégration désactivée.", error: false }); }
+    catch (e) { setNotice({ text: errMsg(e), error: true }); }
+    finally { setBusy(false); }
+  };
 
   // Écrans avant l'application
   if (!supabaseConfigured) return <ConfigMissing />;
@@ -201,6 +256,8 @@ export default function App() {
     { id: "leads" as Page, label: "Prospects & clients", icon: Users },
     { id: "pipeline" as Page, label: "Pipeline commercial", icon: Target },
     { id: "tasks" as Page, label: "Tâches & relances", icon: CalendarClock },
+    { id: "agenda" as Page, label: "Agenda", icon: CalendarDays },
+    { id: "invoices" as Page, label: "Factures", icon: Receipt },
     { id: "automation" as Page, label: "Automatisations", icon: Activity },
     { id: "assistant" as Page, label: "Assistant IA", icon: Bot }
   ];
@@ -230,7 +287,10 @@ export default function App() {
           {nav.map(n => (
             <button type="button" key={n.id} className={`nav-item ${page === n.id ? "active" : ""}`}
               onClick={() => { setPage(n.id); setMobileNav(false); }}>
-              <n.icon size={18} /><span>{n.label}</span>{n.id === "tasks" && overdue > 0 && <em>{overdue}</em>}
+              <n.icon size={18} /><span>{n.label}</span>
+              {n.id === "tasks" && overdue > 0 && <em>{overdue}</em>}
+              {n.id === "agenda" && urgentAppts.length > 0 && <em>{urgentAppts.length}</em>}
+              {n.id === "invoices" && overdueInvoices.length > 0 && <em>{overdueInvoices.length}</em>}
             </button>
           ))}
         </nav>
@@ -269,6 +329,24 @@ export default function App() {
               <button type="button" aria-label="Fermer le message" onClick={() => setNotice(null)}><X size={14} /></button>
             </div>
           )}
+          {page === "dashboard" && (urgentAppts.length > 0 || overdueInvoices.length > 0) && (
+            <div className="alert-row">
+              {urgentAppts.length > 0 && (
+                <button type="button" className="alert-card" onClick={() => setPage("agenda")}>
+                  <AlertTriangle size={16} />
+                  <span><b>{urgentAppts.length} rendez-vous urgent(s)</b>
+                    <small>Prochain : {urgentAppts[0].title} · {new Date(urgentAppts[0].starts_at).toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</small></span>
+                </button>
+              )}
+              {overdueInvoices.length > 0 && (
+                <button type="button" className="alert-card" onClick={() => setPage("invoices")}>
+                  <Receipt size={16} />
+                  <span><b>{overdueInvoices.length} facture(s) en retard</b>
+                    <small>{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(overdueInvoices.reduce((s, i) => s + i.amount, 0))} à relancer</small></span>
+                </button>
+              )}
+            </div>
+          )}
           {page === "dashboard" && (
             <Dashboard firstName={firstName} leadCount={ws.contacts.length} deals={dealRows} stages={ws.stages}
               tasks={taskViews} overdue={overdue} pipelineValue={pipelineValue} activities={ws.activities}
@@ -278,13 +356,20 @@ export default function App() {
             canDelete={org.role === "owner" || org.role === "admin"} onDelete={setToDelete} />}
           {page === "pipeline" && <Pipeline deals={dealRows} stages={ws.stages} onMove={onMoveDeal} onAdd={() => setModal("deal")} />}
           {page === "tasks" && <Tasks tasks={taskViews} onToggle={onToggleTask} onAdd={() => setModal("task")} />}
+          {page === "agenda" && <Agenda appointments={ws.appointments} contactName={contactName} onStatus={onApptStatus}
+            onAdd={d => { setApptDate(d); setModal("appointment"); }} />}
+          {page === "invoices" && <Invoices invoices={ws.invoices} clientName={invoiceClient} onStatus={onInvoiceStatus} onAdd={() => setModal("invoice")} />}
           {page === "automation" && (
             <Automation rules={ws.rules} runs={ws.runs} canEdit={org.role === "owner" || org.role === "admin"} onToggle={onToggleRule} />
           )}
           {page === "assistant" && <Assistant />}
           {page === "settings" && userId && <SettingsPage org={org} email={email} members={ws.members} invitations={ws.invitations} currentUserId={userId}
             canInvite={org.role === "owner" || org.role === "admin"} busy={busy} onInvite={onInvite} onRevoke={onRevoke} onSignOut={signOut}
-            canExport={org.role === "owner" || org.role === "admin"} onExport={onExport} />}
+            canExport={org.role === "owner" || org.role === "admin"} onExport={onExport}
+            integration={(org.role === "owner" || org.role === "admin") ? (
+              <MakeIntegration endpoint={`${supabaseUrl.replace(/\/+$/, "")}/rest/v1/rpc/make_ingest`} apiKey={supabaseKey}
+                info={integration} newToken={newToken} busy={busy} onGenerate={onGenerateToken} onRevoke={onRevokeToken} onLoad={loadIntegration} />
+            ) : undefined} />}
         </div>
         <footer className="footer">
           VALTIQ © 2026 <span>CRM intelligent · Conçu pour simplifier votre quotidien</span>
@@ -309,6 +394,16 @@ export default function App() {
       {modal === "deal" && (
         <Modal title="Nouvelle opportunité" onClose={() => setModal(null)}>
           <DealForm companies={ws.companies} contacts={ws.contacts} stages={ws.stages} busy={busy} onSubmit={onAddDeal} />
+        </Modal>
+      )}
+      {modal === "appointment" && (
+        <Modal title="Nouveau rendez-vous" onClose={() => setModal(null)}>
+          <AppointmentForm contacts={ws.contacts} busy={busy} defaultDate={apptDate} onSubmit={onAddAppointment} />
+        </Modal>
+      )}
+      {modal === "invoice" && (
+        <Modal title="Nouvelle facture" onClose={() => setModal(null)}>
+          <InvoiceForm companies={ws.companies} busy={busy} onSubmit={onAddInvoice} />
         </Modal>
       )}
       {modal === "task" && (
