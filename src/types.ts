@@ -38,14 +38,30 @@ export type AutomationRun = {
   status: "success" | "failed" | "skipped"; details: Record<string, unknown>; created_at: string;
 };
 export type Invitation = { id: string; organization_id: string; email: string; role: Role; created_at: string };
+export type AppointmentStatus = "scheduled" | "done" | "cancelled";
+export type Appointment = {
+  id: string; organization_id: string; title: string; starts_at: string; ends_at: string | null;
+  location: string | null; notes: string | null; urgent: boolean; status: AppointmentStatus;
+  contact_id: string | null; owner_id: string | null; source: string | null; external_id: string | null;
+  created_at: string; updated_at: string;
+};
+export type InvoiceStatus = "unpaid" | "paid";
+export type Invoice = {
+  id: string; organization_id: string; number: string | null; client_name: string | null;
+  company_id: string | null; contact_id: string | null; amount: number; currency: string;
+  issued_at: string | null; due_at: string | null; paid_at: string | null; status: InvoiceStatus;
+  notes: string | null; source: string | null; external_id: string | null; created_at: string;
+};
+export type IntegrationInfo = { token_hint: string; created_at: string; last_used_at: string | null } | null;
 
 export type Workspace = {
   companies: Company[]; contacts: Contact[]; stages: Stage[]; opportunities: Opportunity[];
   tasks: TaskRow[]; activities: ActivityRow[]; members: Member[]; invitations: Invitation[];
-  rules: AutomationRule[]; runs: AutomationRun[];
+  rules: AutomationRule[]; runs: AutomationRun[]; appointments: Appointment[]; invoices: Invoice[];
 };
 export const emptyWorkspace: Workspace = {
-  companies: [], contacts: [], stages: [], opportunities: [], tasks: [], activities: [], members: [], invitations: [], rules: [], runs: []
+  companies: [], contacts: [], stages: [], opportunities: [], tasks: [], activities: [], members: [], invitations: [], rules: [], runs: [],
+  appointments: [], invoices: []
 };
 
 // Vues prêtes à afficher

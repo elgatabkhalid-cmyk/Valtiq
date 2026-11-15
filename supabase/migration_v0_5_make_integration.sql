@@ -219,15 +219,27 @@ exception when others then
   raise exception 'Champ "%" : date invalide (%). Format attendu : 2026-11-20', k, v;
 end $$;
 
+-- Accepte 1500.5 / 1500,5 / 1.500,50 / 1,500.50 / "1 500 €"
 create or replace function public._mk_num(p jsonb, k text)
 returns numeric language plpgsql immutable set search_path = public
 as $$
-declare v text := nullif(replace(replace(trim(p ->> k), ' ', ''), ',', '.'), '');
+declare
+  raw text := p ->> k;
+  v text := nullif(regexp_replace(coalesce(p ->> k, ''), '[^0-9,.\-]', '', 'g'), '');
 begin
   if v is null then return null; end if;
+  if position(',' in v) > 0 and position('.' in v) > 0 then
+    if strpos(reverse(v), ',') < strpos(reverse(v), '.') then
+      v := replace(replace(v, '.', ''), ',', '.');   -- 1.500,50
+    else
+      v := replace(v, ',', '');                      -- 1,500.50
+    end if;
+  elsif position(',' in v) > 0 then
+    v := replace(v, ',', '.');                       -- 1500,50
+  end if;
   return v::numeric;
 exception when others then
-  raise exception 'Champ "%" : nombre invalide (%)', k, v;
+  raise exception 'Champ "%" : nombre invalide (%)', k, raw;
 end $$;
 
 create or replace function public._mk_bool(p jsonb, k text)
