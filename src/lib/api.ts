@@ -1,0 +1,181 @@
+import { supabase } from "./supabase";
+import type {
+  ActivityRow, AutomationRule, AutomationRun, Company, Contact, Invitation, LeadStatus, Member, OrgInfo, Opportunity, Role, Stage,
+  TaskPriority, TaskRow, TaskStatus, Workspace
+} from "../types";
+
+function db() {
+  if (!supabase) throw new Error("Supabase n'est pas configuré (fichier .env).");
+  return supabase;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function unwrap(res: { data: any; error: { message: string } | null }): any {
+  if (res.error) throw new Error(res.error.message);
+  return res.data;
+}
+
+export function errMsg(e: unknown): string {
+  const m = e instanceof Error ? e.message : String(e);
+  if (/Invalid login credentials/i.test(m)) return "Email ou mot de passe incorrect.";
+  if (/User already registered/i.test(m)) return "Un compte existe déjà avec cet email.";
+  if (/Email not confirmed/i.test(m)) return "Email non confirmé : cliquez sur le lien reçu par email.";
+  if (/duplicate key/i.test(m) && /invitations/i.test(m)) return "Une invitation est déjà en attente pour cet email.";
+  if (/row-level security/i.test(m)) return "Action refusée : vous n'avez pas les droits nécessaires.";
+  return m;
+}
+
+export async function listMemberships(userId: string): Promise<OrgInfo[]> {
+  const rows = unwrap(
+    await db().from("organization_members").select("organization_id, role, organizations(name)").eq("user_id", userId)
+  ) as any[];
+  return (rows ?? []).map((r: any) => {
+    const o = Array.isArray(r.organizations) ? r.organizations[0] : r.organizations;
+    return { id: r.organization_id as string, role: r.role, name: (o?.name as string) ?? "Organisation" };
+  });
+}
+
+export async function createOrganization(name: string): Promise<string> {
+  const id = unwrap(await db().rpc("create_organization", { org_name: name }));
+  return id as string;
+}
+
+export async function loadWorkspace(orgId: string): Promise<Workspace> {
+  const c = db();
+  const [companies, contacts, stages, opps, tasks, acts, members] = await Promise.all([
+    c.from("companies").select("*").eq("organization_id", orgId).order("name"),
+    c.from("contacts").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }),
+    c.from("pipeline_stages").select("*").eq("organization_id", orgId).order("position"),
+    c.from("opportunities").select("*").eq("organization_id", orgId).order("updated_at", { ascending: false }),
+    c.from("tasks").select("*").eq("organization_id", orgId).order("due_at", { ascending: true, nullsFirst: false }),
+    c.from("activities").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(8),
+    c.from("organization_members").select("user_id, role, profiles(full_name)").eq("organization_id", orgId)
+  ]);
+  // Les invitations n'existent qu'après la migration SQL v0.3 : on ignore l'erreur si la table est absente
+  const invRes = await c.from("invitations").select("*").eq("organization_id", orgId).order("created_at", { ascending: false });
+  const rulesRes = await c.from("automation_rules").select("*").eq("organization_id", orgId).order("code");
+  const runsRes = await c.from("automation_runs").select("*").eq("organization_id", orgId)
+    .order("created_at", { ascending: false }).limit(12);
+  return {
+    rules: (rulesRes.error ? [] : (rulesRes.data ?? [])) as AutomationRule[],
+    runs: (runsRes.error ? [] : (runsRes.data ?? [])) as AutomationRun[],
+    invitations: (invRes.error ? [] : (invRes.data ?? [])) as Invitation[],
+    companies: (unwrap(companies) ?? []) as Company[],
+    contacts: (unwrap(contacts) ?? []) as Contact[],
+    stages: (unwrap(stages) ?? []) as Stage[],
+    opportunities: ((unwrap(opps) ?? []) as any[]).map((o: any) => ({ ...o, amount: Number(o.amount) })) as Opportunity[],
+    tasks: (unwrap(tasks) ?? []) as TaskRow[],
+    activities: (unwrap(acts) ?? []) as ActivityRow[],
+    members: ((unwrap(members) ?? []) as any[]).map((m: any) => {
+      const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+      return { user_id: m.user_id, role: m.role, full_name: p?.full_name ?? null } as Member;
+    })
+  };
+}
+
+export async function addLead(
+  orgId: string, userId: string, companies: Company[],
+  input: { firstName: string; lastName: string; company: string; email: string; phone: string; source: string }
+) {
+  let companyId: string | null = null;
+  const name = input.company.trim();
+  if (name) {
+    const existing = companies.find(x => x.name.trim().toLowerCase() === name.toLowerCase());
+    if (existing) companyId = existing.id;
+    else {
+      const row = unwrap(
+        await db().from("companies").insert({ organization_id: orgId, name, owner_id: userId }).select("id").single()
+      );
+      companyId = row.id as string;
+    }
+  }
+  unwrap(
+    await db().from("contacts").insert({
+      organization_id: orgId, company_id: companyId,
+      first_name: input.firstName.trim(), last_name: input.lastName.trim(),
+      email: input.email.trim() || null, phone: input.phone.trim() || null,
+      source: input.source.trim() || "Saisie manuelle", owner_id: userId
+    })
+  );
+}
+
+export async function updateContactStatus(id: string, status: LeadStatus) {
+  unwrap(await db().from("contacts").update({ status }).eq("id", id));
+}
+
+export async function addOpportunity(
+  orgId: string, userId: string,
+  input: { title: string; amount: number; companyId: string | null; contactId: string | null; stageId: string | null }
+) {
+  unwrap(
+    await db().from("opportunities").insert({
+      organization_id: orgId, title: input.title.trim(), amount: input.amount,
+      company_id: input.companyId, contact_id: input.contactId, stage_id: input.stageId, owner_id: userId
+    })
+  );
+}
+
+export async function moveOpportunity(opp: Opportunity, stage: Stage, userId: string) {
+  const closed = stage.name === "Gagné" || stage.name === "Perdu";
+  unwrap(
+    await db().from("opportunities")
+      .update({ stage_id: stage.id, closed_at: closed ? new Date().toISOString() : null })
+      .eq("id", opp.id)
+  );
+  // L'activité « changement d'étape » est créée par la règle STAGE_CHANGE_LOG (côté base de données).
+  void userId;
+}
+
+export async function setRuleEnabled(id: string, enabled: boolean) {
+  unwrap(await db().from("automation_rules").update({ enabled }).eq("id", id));
+}
+
+export async function addTask(
+  orgId: string, userId: string,
+  input: { title: string; dueDate: string; priority: TaskPriority; contactId: string | null }
+) {
+  unwrap(
+    await db().from("tasks").insert({
+      organization_id: orgId, title: input.title.trim(), priority: input.priority,
+      due_at: input.dueDate ? new Date(input.dueDate + "T12:00:00").toISOString() : null,
+      contact_id: input.contactId, owner_id: userId
+    })
+  );
+}
+
+export async function setTaskStatus(id: string, status: TaskStatus) {
+  unwrap(await db().from("tasks").update({ status }).eq("id", id));
+}
+
+// Rattache l'utilisateur connecté aux organisations qui l'ont invité (par email)
+export async function acceptInvitations(): Promise<number> {
+  const n = unwrap(await db().rpc("accept_invitations"));
+  return Number(n) || 0;
+}
+
+export async function inviteMember(orgId: string, userId: string, email: string, role: Exclude<Role, "owner">) {
+  unwrap(
+    await db().from("invitations").insert({ organization_id: orgId, email: email.trim().toLowerCase(), role, invited_by: userId })
+  );
+}
+
+export async function revokeInvitation(id: string) {
+  unwrap(await db().from("invitations").delete().eq("id", id));
+}
+
+// RGPD : suppression définitive d'un contact (ses activités liées sont supprimées en cascade ; les opportunités sont conservées sans contact)
+export async function deleteContact(id: string) {
+  unwrap(await db().from("contacts").delete().eq("id", id));
+}
+
+// RGPD : export complet des données de l'organisation (droit d'accès / portabilité)
+export async function exportOrganization(orgId: string): Promise<Blob> {
+  const c = db();
+  const tables = ["companies", "contacts", "pipeline_stages", "opportunities", "tasks", "activities", "automation_rules", "automation_runs"];
+  const out: Record<string, unknown> = { exported_at: new Date().toISOString(), organization_id: orgId };
+  for (const t of tables) {
+    const { data, error } = await c.from(t).select("*").eq("organization_id", orgId);
+    if (error) throw error;
+    out[t] = data ?? [];
+  }
+  return new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
+}
