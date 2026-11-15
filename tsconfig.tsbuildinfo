@@ -1,1 +1,0 @@
-{"root":["./src/app.tsx","./src/root.tsx","./src/legal.config.ts","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/authscreens.tsx","./src/components/legalpages.tsx","./src/components/modals.tsx","./src/components/pages.tsx","./src/lib/api.ts","./src/lib/supabase.ts"],"version":"5.9.3"}
