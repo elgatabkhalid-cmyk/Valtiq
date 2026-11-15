@@ -10,6 +10,8 @@ import {
   addAppointment, addInvoice, createIntegrationToken, getIntegrationInfo, revokeIntegrationToken, setAppointmentStatus, setInvoiceStatus
 } from "./lib/api";
 import { emptyWorkspace } from "./types";
+import { loc, t, tv } from "./i18n";
+import { LangSwitch } from "./components/LangSwitch";
 import type {
   AppointmentStatus, DealRow, IntegrationInfo, Invoice, InvoiceStatus, LeadRow, LeadStatus, OrgInfo, TaskStatus, TaskView, Workspace
 } from "./types";
@@ -132,8 +134,8 @@ export default function App() {
   // Noms affichés
   const nameOf = useCallback((id: string | null) => {
     if (!id) return "—";
-    if (id === userId) return "Vous";
-    return ws.members.find(m => m.user_id === id)?.full_name || "Membre";
+    if (id === userId) return t("Vous");
+    return ws.members.find(m => m.user_id === id)?.full_name || t("Membre");
   }, [ws.members, userId]);
   const companyName = useCallback((id: string | null) => ws.companies.find(c => c.id === id)?.name ?? "", [ws.companies]);
   const contactName = useCallback((id: string | null) => {
@@ -144,7 +146,7 @@ export default function App() {
   // Vues
   const leadRows: LeadRow[] = useMemo(() => ws.contacts.map(c => ({
     id: c.id, name: `${c.first_name} ${c.last_name}`, company: companyName(c.company_id),
-    email: c.email ?? "", phone: c.phone ?? "", source: c.source ?? "—", status: c.status, owner: nameOf(c.owner_id)
+    email: c.email ?? "", phone: c.phone ?? "", source: c.source ? tv(c.source) : "—", status: c.status, owner: nameOf(c.owner_id)
   })), [ws.contacts, companyName, nameOf]);
 
   const filteredLeads = useMemo(() => {
@@ -161,7 +163,7 @@ export default function App() {
     const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
     return ws.tasks.map(t => ({
       id: t.id, title: t.title, related: contactName(t.contact_id) || "—", owner: nameOf(t.owner_id),
-      due: t.due_at ? new Date(t.due_at).toLocaleDateString("fr-FR") : null,
+      due: t.due_at ? new Date(t.due_at).toLocaleDateString(loc()) : null,
       status: t.status, priority: t.priority,
       overdue: t.status !== "done" && !!t.due_at && new Date(t.due_at) < startOfToday
     }));
@@ -177,13 +179,13 @@ export default function App() {
 
   // Actions
   const onAddLead = (v: Parameters<typeof addLead>[3]) =>
-    run(async () => { if (orgId && userId) await addLead(orgId, userId, ws.companies, v); }, "Prospect ajouté.")
+    run(async () => { if (orgId && userId) await addLead(orgId, userId, ws.companies, v); }, t("Prospect ajouté."))
       .then(err => { if (!err) setModal(null); return err; });
   const onAddDeal = (v: Parameters<typeof addOpportunity>[2]) =>
-    run(async () => { if (orgId && userId) await addOpportunity(orgId, userId, v); }, "Opportunité créée.")
+    run(async () => { if (orgId && userId) await addOpportunity(orgId, userId, v); }, t("Opportunité créée."))
       .then(err => { if (!err) setModal(null); return err; });
   const onAddTask = (v: Parameters<typeof addTask>[2]) =>
-    run(async () => { if (orgId && userId) await addTask(orgId, userId, v); }, "Tâche créée.")
+    run(async () => { if (orgId && userId) await addTask(orgId, userId, v); }, t("Tâche créée."))
       .then(err => { if (!err) setModal(null); return err; });
   const onMoveDeal = (id: string, stageId: string) => {
     const opp = ws.opportunities.find(o => o.id === id);
@@ -192,14 +194,14 @@ export default function App() {
     void run(() => moveOpportunity(opp, stage, userId));
   };
   const onInvite = (email: string, role: "admin" | "sales") =>
-    run(async () => { if (orgId && userId) await inviteMember(orgId, userId, email, role); }, "Invitation enregistrée.");
+    run(async () => { if (orgId && userId) await inviteMember(orgId, userId, email, role); }, t("Invitation enregistrée."));
   const onRevoke = (id: string) => { void run(() => revokeInvitation(id)); };
   const onToggleRule = (id: string, enabled: boolean) => { void run(() => setRuleEnabled(id, enabled)); };
   const onToggleTask = (id: string, status: TaskStatus) => { void run(() => setTaskStatus(id, status)); };
   const [toDelete, setToDelete] = useState<LeadRow | null>(null);
   const onConfirmDelete = async () => {
     if (!toDelete) return;
-    const err = await run(() => deleteContact(toDelete.id), "Contact supprimé définitivement.");
+    const err = await run(() => deleteContact(toDelete.id), t("Contact supprimé définitivement."));
     if (!err) setToDelete(null);
   };
   const onExport = async () => {
@@ -211,16 +213,16 @@ export default function App() {
       const a = document.createElement("a");
       a.href = url; a.download = `valtiq-export-${new Date().toISOString().slice(0, 10)}.json`; a.click();
       URL.revokeObjectURL(url);
-      setNotice({ text: "Export téléchargé.", error: false });
+      setNotice({ text: t("Export téléchargé."), error: false });
     } catch (e) { setNotice({ text: errMsg(e), error: true }); }
     finally { setBusy(false); }
   };
   const onLeadStatus = (id: string, status: LeadStatus) => { void run(() => updateContactStatus(id, status)); };
   const onAddAppointment = (v: Parameters<typeof addAppointment>[2]) =>
-    run(async () => { if (orgId && userId) await addAppointment(orgId, userId, v); }, "Rendez-vous créé.")
+    run(async () => { if (orgId && userId) await addAppointment(orgId, userId, v); }, t("Rendez-vous créé."))
       .then(err => { if (!err) setModal(null); return err; });
   const onAddInvoice = (v: Parameters<typeof addInvoice>[1]) =>
-    run(async () => { if (orgId) await addInvoice(orgId, v); }, "Facture créée.")
+    run(async () => { if (orgId) await addInvoice(orgId, v); }, t("Facture créée."))
       .then(err => { if (!err) setModal(null); return err; });
   const onApptStatus = (id: string, status: AppointmentStatus) => { void run(() => setAppointmentStatus(id, status)); };
   const onInvoiceStatus = (id: string, status: InvoiceStatus) => { void run(() => setInvoiceStatus(id, status)); };
@@ -234,7 +236,7 @@ export default function App() {
   const onRevokeToken = async () => {
     if (!orgId) return;
     setBusy(true);
-    try { await revokeIntegrationToken(orgId); setNewToken(null); await loadIntegration(); setNotice({ text: "Clé d'intégration désactivée.", error: false }); }
+    try { await revokeIntegrationToken(orgId); setNewToken(null); await loadIntegration(); setNotice({ text: t("Clé d'intégration désactivée."), error: false }); }
     catch (e) { setNotice({ text: errMsg(e), error: true }); }
     finally { setBusy(false); }
   };
@@ -243,7 +245,7 @@ export default function App() {
   if (!supabaseConfigured) return <ConfigMissing />;
   if (session === undefined) return <Loading />;
   if (!session) return <AuthScreen />;
-  if (orgs === null) return <Loading text="Chargement de votre espace…" />;
+  if (orgs === null) return <Loading text={t("Chargement de votre espace…")} />;
   if (orgs.length === 0 || !org) return <Onboarding onCreate={createOrg} onSignOut={signOut} />;
 
   const fullName = (user?.user_metadata?.full_name as string | undefined) ?? "";
@@ -252,16 +254,16 @@ export default function App() {
   const initial = (fullName || email || "V").charAt(0).toUpperCase();
 
   const nav = [
-    { id: "dashboard" as Page, label: "Vue d'ensemble", icon: LayoutDashboard },
-    { id: "leads" as Page, label: "Prospects & clients", icon: Users },
-    { id: "pipeline" as Page, label: "Pipeline commercial", icon: Target },
-    { id: "tasks" as Page, label: "Tâches & relances", icon: CalendarClock },
-    { id: "agenda" as Page, label: "Agenda", icon: CalendarDays },
-    { id: "invoices" as Page, label: "Factures", icon: Receipt },
-    { id: "automation" as Page, label: "Automatisations", icon: Activity },
-    { id: "assistant" as Page, label: "Assistant IA", icon: Bot }
+    { id: "dashboard" as Page, label: t("Vue d'ensemble"), icon: LayoutDashboard },
+    { id: "leads" as Page, label: t("Prospects & clients"), icon: Users },
+    { id: "pipeline" as Page, label: t("Pipeline commercial"), icon: Target },
+    { id: "tasks" as Page, label: t("Tâches & relances"), icon: CalendarClock },
+    { id: "agenda" as Page, label: t("Agenda"), icon: CalendarDays },
+    { id: "invoices" as Page, label: t("Factures"), icon: Receipt },
+    { id: "automation" as Page, label: t("Automatisations"), icon: Activity },
+    { id: "assistant" as Page, label: t("Assistant IA"), icon: Bot }
   ];
-  const title = nav.find(n => n.id === page)?.label ?? "Paramètres";
+  const title = nav.find(n => n.id === page)?.label ?? t("Paramètres");
 
   return (
     <div className="app-shell">
@@ -269,20 +271,20 @@ export default function App() {
         <div className="brand">
           <div className="brand-symbol">V</div>
           <div><b>VALTIQ</b><small>CRM PLATFORM</small></div>
-          <button type="button" className="icon-btn mobile-close" aria-label="Fermer le menu" onClick={() => setMobileNav(false)}><X size={18} /></button>
+          <button type="button" className="icon-btn mobile-close" aria-label={t("Fermer le menu")} onClick={() => setMobileNav(false)}><X size={18} /></button>
         </div>
         <div className="workspace">
           <div className="workspace-icon">{org.name.charAt(0).toUpperCase()}</div>
           {orgs.length > 1 ? (
-            <select className="org-select" aria-label="Changer d'organisation" value={org.id}
+            <select className="org-select" aria-label={t("Changer d'organisation")} value={org.id}
               onChange={e => { setOrgId(e.target.value); setPage("dashboard"); }}>
               {orgs.map(o => <option key={o.id} value={o.id}>{o.name}</option>)}
             </select>
           ) : (
-            <><div><b>{org.name}</b><small>Votre organisation</small></div><ChevronDown size={15} /></>
+            <><div><b>{org.name}</b><small>{t("Votre organisation")}</small></div><ChevronDown size={15} /></>
           )}
         </div>
-        <div className="nav-label">ESPACE COMMERCIAL</div>
+        <div className="nav-label">{t("ESPACE COMMERCIAL")}</div>
         <nav>
           {nav.map(n => (
             <button type="button" key={n.id} className={`nav-item ${page === n.id ? "active" : ""}`}
@@ -294,29 +296,30 @@ export default function App() {
             </button>
           ))}
         </nav>
-        <div className="nav-label bottom-label">CONFIGURATION</div>
+        <div className="nav-label bottom-label">{t("CONFIGURATION")}</div>
         <button type="button" className={`nav-item ${page === "settings" ? "active" : ""}`}
           onClick={() => { setPage("settings"); setMobileNav(false); }}>
-          <Settings size={18} /><span>Paramètres</span>
+          <Settings size={18} /><span>{t("Paramètres")}</span>
         </button>
         <div className="sidebar-bottom">
+          <LangSwitch className="sidebar-lang" />
           <div className="user">
             <div className="avatar">{initial}</div>
-            <div><b>{fullName || "Mon compte"}</b><small>{email}</small></div>
-            <button type="button" className="icon-btn" aria-label="Se déconnecter" onClick={signOut}><LogOut size={18} /></button>
+            <div><b>{fullName || t("Mon compte")}</b><small>{email}</small></div>
+            <button type="button" className="icon-btn" aria-label={t("Se déconnecter")} onClick={signOut}><LogOut size={18} /></button>
           </div>
         </div>
       </aside>
       {mobileNav && <div className="scrim" onClick={() => setMobileNav(false)} />}
       <main className="main">
         <header className="topbar">
-          <button type="button" className="icon-btn mobile-menu" aria-label="Ouvrir le menu" onClick={() => setMobileNav(true)}><Menu /></button>
+          <button type="button" className="icon-btn mobile-menu" aria-label={t("Ouvrir le menu")} onClick={() => setMobileNav(true)}><Menu /></button>
           <div className="breadcrumb">VALTIQ <span>/</span> {title}</div>
           <div className="top-actions">
             {page === "leads" && (
               <div className="search">
                 <Search size={16} />
-                <input placeholder="Rechercher un prospect…" aria-label="Rechercher un prospect" value={query} onChange={e => setQuery(e.target.value)} />
+                <input placeholder={t("Rechercher un prospect…")} aria-label={t("Rechercher un prospect")} value={query} onChange={e => setQuery(e.target.value)} />
               </div>
             )}
             <div className="avatar">{initial}</div>
@@ -326,7 +329,7 @@ export default function App() {
           {notice && (
             <div className={`notice ${notice.error ? "error" : ""}`} role={notice.error ? "alert" : "status"}>
               <span className="notice-dot" />{notice.text}
-              <button type="button" aria-label="Fermer le message" onClick={() => setNotice(null)}><X size={14} /></button>
+              <button type="button" aria-label={t("Fermer le message")} onClick={() => setNotice(null)}><X size={14} /></button>
             </div>
           )}
           {page === "dashboard" && (urgentAppts.length > 0 || overdueInvoices.length > 0) && (
@@ -334,15 +337,15 @@ export default function App() {
               {urgentAppts.length > 0 && (
                 <button type="button" className="alert-card" onClick={() => setPage("agenda")}>
                   <AlertTriangle size={16} />
-                  <span><b>{urgentAppts.length} rendez-vous urgent(s)</b>
-                    <small>Prochain : {urgentAppts[0].title} · {new Date(urgentAppts[0].starts_at).toLocaleString("fr-FR", { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</small></span>
+                  <span><b>{t("{n} rendez-vous urgent(s)", { n: urgentAppts.length })}</b>
+                    <small>{t("Prochain :")} {urgentAppts[0].title} · {new Date(urgentAppts[0].starts_at).toLocaleString(loc(), { weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}</small></span>
                 </button>
               )}
               {overdueInvoices.length > 0 && (
                 <button type="button" className="alert-card" onClick={() => setPage("invoices")}>
                   <Receipt size={16} />
-                  <span><b>{overdueInvoices.length} facture(s) en retard</b>
-                    <small>{new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(overdueInvoices.reduce((s, i) => s + i.amount, 0))} à relancer</small></span>
+                  <span><b>{t("{n} facture(s) en retard", { n: overdueInvoices.length })}</b>
+                    <small>{t("{amount} à relancer", { amount: new Intl.NumberFormat(loc(), { style: "currency", currency: "EUR" }).format(overdueInvoices.reduce((s, i) => s + i.amount, 0)) })}</small></span>
                 </button>
               )}
             </div>
@@ -372,42 +375,42 @@ export default function App() {
             ) : undefined} />}
         </div>
         <footer className="footer">
-          VALTIQ © 2026 <span>CRM intelligent · Conçu pour simplifier votre quotidien</span>
-          <span><a href="#/mentions-legales">Mentions légales</a> · <a href="#/confidentialite">Confidentialité</a></span>
-          <span className="footer-status"><i /> Version de développement</span>
+          VALTIQ © 2026 <span>{t("CRM intelligent · Conçu pour simplifier votre quotidien")}</span>
+          <span><a href="#/mentions-legales">{t("Mentions légales")}</a> · <a href="#/confidentialite">{t("Confidentialité")}</a></span>
+          <span className="footer-status"><i /> {t("Version de développement")}</span>
         </footer>
       </main>
       {toDelete && (
-        <Modal title="Supprimer ce contact ?" onClose={() => setToDelete(null)}>
-          <p>« {toDelete.name} » sera supprimé définitivement, ainsi que son historique d'activités. Cette action est irréversible.</p>
+        <Modal title={t("Supprimer ce contact ?")} onClose={() => setToDelete(null)}>
+          <p>{t("« {name} » sera supprimé définitivement, ainsi que son historique d'activités. Cette action est irréversible.", { name: toDelete.name })}</p>
           <div className="modal-actions">
-            <button type="button" className="secondary" onClick={() => setToDelete(null)}>Annuler</button>
-            <button type="button" className="primary danger" disabled={busy} onClick={onConfirmDelete}>Supprimer définitivement</button>
+            <button type="button" className="secondary" onClick={() => setToDelete(null)}>{t("Annuler")}</button>
+            <button type="button" className="primary danger" disabled={busy} onClick={onConfirmDelete}>{t("Supprimer définitivement")}</button>
           </div>
         </Modal>
       )}
       {modal === "lead" && (
-        <Modal title="Nouveau prospect" onClose={() => setModal(null)}>
+        <Modal title={t("Nouveau prospect")} onClose={() => setModal(null)}>
           <LeadForm companies={ws.companies} busy={busy} onSubmit={onAddLead} />
         </Modal>
       )}
       {modal === "deal" && (
-        <Modal title="Nouvelle opportunité" onClose={() => setModal(null)}>
+        <Modal title={t("Nouvelle opportunité")} onClose={() => setModal(null)}>
           <DealForm companies={ws.companies} contacts={ws.contacts} stages={ws.stages} busy={busy} onSubmit={onAddDeal} />
         </Modal>
       )}
       {modal === "appointment" && (
-        <Modal title="Nouveau rendez-vous" onClose={() => setModal(null)}>
+        <Modal title={t("Nouveau rendez-vous")} onClose={() => setModal(null)}>
           <AppointmentForm contacts={ws.contacts} busy={busy} defaultDate={apptDate} onSubmit={onAddAppointment} />
         </Modal>
       )}
       {modal === "invoice" && (
-        <Modal title="Nouvelle facture" onClose={() => setModal(null)}>
+        <Modal title={t("Nouvelle facture")} onClose={() => setModal(null)}>
           <InvoiceForm companies={ws.companies} busy={busy} onSubmit={onAddInvoice} />
         </Modal>
       )}
       {modal === "task" && (
-        <Modal title="Nouvelle tâche" onClose={() => setModal(null)}>
+        <Modal title={t("Nouvelle tâche")} onClose={() => setModal(null)}>
           <TaskForm contacts={ws.contacts} busy={busy} onSubmit={onAddTask} />
         </Modal>
       )}
