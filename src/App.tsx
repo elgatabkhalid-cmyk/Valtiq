@@ -10,7 +10,7 @@ import {
   addAppointment, addInvoice, correctClassification, setEmailStatus, createIntegrationToken, getIntegrationInfo, revokeIntegrationToken, setAppointmentStatus, setInvoiceStatus
 } from "./lib/api";
 import { emptyWorkspace } from "./types";
-import { loc, t, tv } from "./i18n";
+import { loc, t, tv, useLang } from "./i18n";
 import { LangSwitch } from "./components/LangSwitch";
 import type {
   AppointmentStatus, EmailStatus, DealRow, IntegrationInfo, Invoice, InvoiceStatus, LeadRow, LeadStatus, OrgInfo, TaskStatus, TaskView, Workspace
@@ -53,6 +53,14 @@ export default function App() {
     const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
     return () => data.subscription.unsubscribe();
   }, []);
+
+  // Langue mémorisée dans le compte : les emails (confirmation, mot de passe…) partent dans cette langue
+  const lang = useLang();
+  const savedLang = session?.user?.user_metadata?.lang as string | undefined;
+  useEffect(() => {
+    if (!supabase || !session || savedLang === lang) return;
+    void supabase.auth.updateUser({ data: { lang } }).catch(() => undefined);
+  }, [lang, savedLang, session]);
 
   // Organisations de l'utilisateur
   useEffect(() => {
