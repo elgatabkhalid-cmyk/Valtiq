@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import App from "./App";
 import { LegalPage } from "./components/LegalPages";
+import { useLang } from "./i18n";
 
 function route(): "mentions" | "privacy" | null {
   const h = window.location.hash;
@@ -10,6 +11,7 @@ function route(): "mentions" | "privacy" | null {
 }
 
 export default function Root() {
+  useLang(); // re-rend toute l'application quand la langue change
   const [r, setR] = useState(route());
   useEffect(() => {
     const f = () => { setR(route()); window.scrollTo(0, 0); };

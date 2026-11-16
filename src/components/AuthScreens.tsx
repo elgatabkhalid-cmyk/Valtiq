@@ -2,6 +2,8 @@ import { useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { errMsg } from "../lib/api";
+import { t } from "../i18n";
+import { LangSwitch } from "./LangSwitch";
 
 function Shell({ children }: { children: ReactNode }) {
   return (
@@ -10,6 +12,7 @@ function Shell({ children }: { children: ReactNode }) {
         <div className="brand auth-brand">
           <div className="brand-symbol">V</div>
           <div><b>VALTIQ</b><small>CRM PLATFORM</small></div>
+          <LangSwitch className="auth-lang" />
         </div>
         {children}
       </div>
@@ -20,17 +23,16 @@ function Shell({ children }: { children: ReactNode }) {
 export function ConfigMissing() {
   return (
     <Shell>
-      <h1>Configuration requise</h1>
+      <h1>{t("Configuration requise")}</h1>
       <p className="muted">
-        Les variables <code>VITE_SUPABASE_URL</code> et <code>VITE_SUPABASE_ANON_KEY</code> sont absentes ou
-        invalides. Renseignez le fichier <code>.env</code>, puis relancez <code>npm run dev</code>.
+        {t("Les variables VITE_SUPABASE_URL et VITE_SUPABASE_ANON_KEY sont absentes ou invalides. Renseignez le fichier .env, puis relancez npm run dev.")}
       </p>
     </Shell>
   );
 }
 
-export function Loading({ text = "Chargement…" }: { text?: string }) {
-  return <Shell><p className="muted" role="status">{text}</p></Shell>;
+export function Loading({ text }: { text?: string }) {
+  return <Shell><p className="muted" role="status">{text ?? t("Chargement…")}</p></Shell>;
 }
 
 export function AuthScreen() {
@@ -47,10 +49,10 @@ export function AuthScreen() {
     e.preventDefault();
     if (!supabase) return;
     setError(""); setInfo("");
-    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setError("Adresse email invalide."); return; }
-    if (password.length < 8) { setError("Le mot de passe doit contenir au moins 8 caractères."); return; }
-    if (mode === "signup" && !fullName.trim()) { setError("Indiquez votre nom."); return; }
-    if (mode === "signup" && !consent) { setError("Vous devez accepter la politique de confidentialité."); return; }
+    if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setError(t("Adresse email invalide.")); return; }
+    if (password.length < 8) { setError(t("Le mot de passe doit contenir au moins 8 caractères.")); return; }
+    if (mode === "signup" && !fullName.trim()) { setError(t("Indiquez votre nom.")); return; }
+    if (mode === "signup" && !consent) { setError(t("Vous devez accepter la politique de confidentialité.")); return; }
     setBusy(true);
     try {
       if (mode === "signin") {
@@ -62,7 +64,7 @@ export function AuthScreen() {
         });
         if (err) throw err;
         if (!data.session) {
-          setInfo("Compte créé. Un email de confirmation vous a été envoyé : cliquez sur le lien, puis connectez-vous.");
+          setInfo(t("Compte créé. Un email de confirmation vous a été envoyé : cliquez sur le lien, puis connectez-vous."));
           setMode("signin");
         }
       }
@@ -75,40 +77,40 @@ export function AuthScreen() {
 
   return (
     <Shell>
-      <h1>{mode === "signin" ? "Connexion" : "Créer un compte"}</h1>
+      <h1>{mode === "signin" ? t("Connexion") : t("Créer un compte")}</h1>
       <p className="muted">
-        {mode === "signin" ? "Accédez à votre espace commercial." : "Créez votre compte, puis votre organisation."}
+        {mode === "signin" ? t("Accédez à votre espace commercial.") : t("Créez votre compte, puis votre organisation.")}
       </p>
       <form onSubmit={submit} noValidate>
         {mode === "signup" && (
-          <label>Nom complet
+          <label>{t("Nom complet")}
             <input value={fullName} onChange={e => setFullName(e.target.value)} autoComplete="name" />
           </label>
         )}
         <label>Email
           <input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="email" />
         </label>
-        <label>Mot de passe
+        <label>{t("Mot de passe")}
           <input type="password" value={password} onChange={e => setPassword(e.target.value)}
             autoComplete={mode === "signin" ? "current-password" : "new-password"} />
         </label>
         {mode === "signup" && (
           <label className="check-row">
             <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
-            <span>J'ai lu et j'accepte la <a href="#/confidentialite" target="_blank" rel="noreferrer">politique de confidentialité</a>.</span>
+            <span>{t("J'ai lu et j'accepte la")} <a href="#/confidentialite" target="_blank" rel="noreferrer">{t("politique de confidentialité")}</a>.</span>
           </label>
         )}
         {error && <div className="form-error" role="alert">{error}</div>}
         {info && <div className="form-info" role="status">{info}</div>}
         <button type="submit" className="primary full" disabled={busy}>
-          {busy ? "Patientez…" : mode === "signin" ? "Se connecter" : "Créer mon compte"}
+          {busy ? t("Patientez…") : mode === "signin" ? t("Se connecter") : t("Créer mon compte")}
         </button>
       </form>
       <button type="button" className="text-btn auth-switch"
         onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(""); setInfo(""); }}>
-        {mode === "signin" ? "Pas encore de compte ? Créer un compte" : "Déjà un compte ? Se connecter"}
+        {mode === "signin" ? t("Pas encore de compte ? Créer un compte") : t("Déjà un compte ? Se connecter")}
       </button>
-      <p className="auth-legal muted"><a href="#/mentions-legales">Mentions légales</a> · <a href="#/confidentialite">Confidentialité</a></p>
+      <p className="auth-legal muted"><a href="#/mentions-legales">{t("Mentions légales")}</a> · <a href="#/confidentialite">{t("Confidentialité")}</a></p>
     </Shell>
   );
 }
@@ -121,7 +123,7 @@ export function Onboarding({ onCreate, onSignOut }: { onCreate: (name: string) =
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    if (!name.trim()) { setError("Indiquez le nom de votre entreprise."); return; }
+    if (!name.trim()) { setError(t("Indiquez le nom de votre entreprise.")); return; }
     setBusy(true);
     try { await onCreate(name.trim()); }
     catch (err) { setError(errMsg(err)); }
@@ -130,16 +132,16 @@ export function Onboarding({ onCreate, onSignOut }: { onCreate: (name: string) =
 
   return (
     <Shell>
-      <h1>Créez votre organisation</h1>
-      <p className="muted">C'est l'espace de travail de votre entreprise : vos prospects, votre pipeline et votre équipe.</p>
+      <h1>{t("Créez votre organisation")}</h1>
+      <p className="muted">{t("C'est l'espace de travail de votre entreprise : vos prospects, votre pipeline et votre équipe.")}</p>
       <form onSubmit={submit} noValidate>
-        <label>Nom de l'entreprise
-          <input value={name} onChange={e => setName(e.target.value)} placeholder="Ex. Atelier Martin" />
+        <label>{t("Nom de l'entreprise")}
+          <input value={name} onChange={e => setName(e.target.value)} placeholder={t("Ex. Atelier Martin")} />
         </label>
         {error && <div className="form-error" role="alert">{error}</div>}
-        <button type="submit" className="primary full" disabled={busy}>{busy ? "Création…" : "Créer l'organisation"}</button>
+        <button type="submit" className="primary full" disabled={busy}>{busy ? t("Création…") : t("Créer l'organisation")}</button>
       </form>
-      <button type="button" className="text-btn auth-switch" onClick={onSignOut}>Se déconnecter</button>
+      <button type="button" className="text-btn auth-switch" onClick={onSignOut}>{t("Se déconnecter")}</button>
     </Shell>
   );
 }

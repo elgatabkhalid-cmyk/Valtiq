@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { X } from "lucide-react";
+import { t, tv } from "../i18n";
 import type { Company, Contact, InvoiceStatus, Stage, TaskPriority } from "../types";
 
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -14,7 +15,7 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
       <div className="modal" role="dialog" aria-modal="true" aria-label={title} onClick={e => e.stopPropagation()}>
         <div className="modal-head">
           <h2>{title}</h2>
-          <button type="button" className="icon-btn" aria-label="Fermer" onClick={onClose}><X /></button>
+          <button type="button" className="icon-btn" aria-label={t("Fermer")} onClick={onClose}><X /></button>
         </div>
         {children}
       </div>
@@ -39,29 +40,29 @@ export function LeadForm({ companies, busy, onSubmit }: {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    if (!firstName.trim() || !lastName.trim()) { setError("Prénom et nom sont obligatoires."); return; }
-    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) { setError("Adresse email invalide."); return; }
+    if (!firstName.trim() || !lastName.trim()) { setError(t("Prénom et nom sont obligatoires.")); return; }
+    if (email.trim() && !/^\S+@\S+\.\S+$/.test(email.trim())) { setError(t("Adresse email invalide.")); return; }
     const err = await onSubmit({ firstName, lastName, company, email, phone, source });
     if (err) setError(err);
   }
 
   return (
     <form onSubmit={submit} noValidate>
-      <label>Prénom<input value={firstName} onChange={e => setFirstName(e.target.value)} /></label>
-      <label>Nom<input value={lastName} onChange={e => setLastName(e.target.value)} /></label>
-      <label>Entreprise
-        <input list="company-list" value={company} onChange={e => setCompany(e.target.value)} placeholder="Ex. Atelier Martin" />
+      <label>{t("Prénom")}<input value={firstName} onChange={e => setFirstName(e.target.value)} /></label>
+      <label>{t("Nom")}<input value={lastName} onChange={e => setLastName(e.target.value)} /></label>
+      <label>{t("Entreprise")}
+        <input list="company-list" value={company} onChange={e => setCompany(e.target.value)} placeholder={t("Ex. Atelier Martin")} />
         <datalist id="company-list">{companies.map(c => <option key={c.id} value={c.name} />)}</datalist>
       </label>
-      <label>Email<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@entreprise.fr" /></label>
-      <label>Téléphone<input value={phone} onChange={e => setPhone(e.target.value)} /></label>
-      <label>Source
+      <label>{t("Email")}<input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="contact@entreprise.fr" /></label>
+      <label>{t("Téléphone")}<input value={phone} onChange={e => setPhone(e.target.value)} /></label>
+      <label>{t("Source")}
         <select value={source} onChange={e => setSource(e.target.value)}>
-          {["Prospection", "Site web", "Recommandation", "Réseaux sociaux", "Salon / événement", "Autre"].map(s => <option key={s}>{s}</option>)}
+          {["Prospection", "Site web", "Recommandation", "Réseaux sociaux", "Salon / événement", "Autre"].map(s => <option key={s} value={s}>{tv(s)}</option>)}
         </select>
       </label>
       {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary full" disabled={busy}>Créer le prospect</button>
+      <button type="submit" className="primary full" disabled={busy}>{t("Créer le prospect")}</button>
     </form>
   );
 }
@@ -81,36 +82,36 @@ export function DealForm({ companies, contacts, stages, busy, onSubmit }: {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    if (!title.trim()) { setError("Le titre est obligatoire."); return; }
+    if (!title.trim()) { setError(t("Le titre est obligatoire.")); return; }
     const n = amount.trim() === "" ? 0 : Number(amount.replace(",", "."));
-    if (!Number.isFinite(n) || n < 0) { setError("Montant invalide."); return; }
+    if (!Number.isFinite(n) || n < 0) { setError(t("Montant invalide.")); return; }
     const err = await onSubmit({ title, amount: n, companyId: companyId || null, contactId: contactId || null, stageId: stageId || null });
     if (err) setError(err);
   }
 
   return (
     <form onSubmit={submit} noValidate>
-      <label>Titre de l'opportunité<input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex. Mise en place du CRM" /></label>
-      <label>Montant (€)<input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" /></label>
-      <label>Entreprise
+      <label>{t("Titre de l'opportunité")}<input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("Ex. Mise en place du CRM")} /></label>
+      <label>{t("Montant (€)")}<input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0" /></label>
+      <label>{t("Entreprise")}
         <select value={companyId} onChange={e => { setCompanyId(e.target.value); setContactId(""); }}>
-          <option value="">— Aucune —</option>
+          <option value="">{t("— Aucune —")}</option>
           {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
         </select>
       </label>
-      <label>Contact
+      <label>{t("Contact")}
         <select value={contactId} onChange={e => setContactId(e.target.value)}>
-          <option value="">— Aucun —</option>
+          <option value="">{t("— Aucun —")}</option>
           {shownContacts.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
         </select>
       </label>
-      <label>Étape
+      <label>{t("Étape")}
         <select value={stageId} onChange={e => setStageId(e.target.value)}>
-          {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          {stages.map(s => <option key={s.id} value={s.id}>{tv(s.name)}</option>)}
         </select>
       </label>
       {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary full" disabled={busy}>Créer l'opportunité</button>
+      <button type="submit" className="primary full" disabled={busy}>{t("Créer l'opportunité")}</button>
     </form>
   );
 }
@@ -134,28 +135,28 @@ export function TaskForm({ contacts, busy, onSubmit }: {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    if (!title.trim()) { setError("Le titre est obligatoire."); return; }
+    if (!title.trim()) { setError(t("Le titre est obligatoire.")); return; }
     const err = await onSubmit({ title, dueDate, priority, contactId: contactId || null });
     if (err) setError(err);
   }
 
   return (
     <form onSubmit={submit} noValidate>
-      <label>Tâche<input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex. Rappeler Thomas Martin" /></label>
-      <label>Échéance<input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></label>
-      <label>Priorité
+      <label>{t("Tâche")}<input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("Ex. Rappeler Thomas Martin")} /></label>
+      <label>{t("Échéance")}<input type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} /></label>
+      <label>{t("Priorité")}
         <select value={priority} onChange={e => setPriority(e.target.value as TaskPriority)}>
-          <option value="low">Basse</option><option value="normal">Normale</option><option value="high">Haute</option>
+          <option value="low">{t("Basse")}</option><option value="normal">{t("Normale")}</option><option value="high">{t("Haute")}</option>
         </select>
       </label>
-      <label>Contact lié
+      <label>{t("Contact lié")}
         <select value={contactId} onChange={e => setContactId(e.target.value)}>
-          <option value="">— Aucun —</option>
+          <option value="">{t("— Aucun —")}</option>
           {contacts.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
         </select>
       </label>
       {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary full" disabled={busy}>Créer la tâche</button>
+      <button type="submit" className="primary full" disabled={busy}>{t("Créer la tâche")}</button>
     </form>
   );
 }
@@ -182,32 +183,32 @@ export function AppointmentForm({ contacts, busy, defaultDate, onSubmit }: {
   async function submit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    if (!title.trim()) { setError("Le titre est obligatoire."); return; }
-    if (!date || !start) { setError("La date et l'heure de début sont obligatoires."); return; }
-    if (end && end < start) { setError("L'heure de fin doit être après l'heure de début."); return; }
+    if (!title.trim()) { setError(t("Le titre est obligatoire.")); return; }
+    if (!date || !start) { setError(t("La date et l'heure de début sont obligatoires.")); return; }
+    if (end && end < start) { setError(t("L'heure de fin doit être après l'heure de début.")); return; }
     const err = await onSubmit({ title, date, start, end, location, notes, urgent, contactId: contactId || null });
     if (err) setError(err);
   }
 
   return (
     <form onSubmit={submit} noValidate>
-      <label>Objet<input value={title} onChange={e => setTitle(e.target.value)} placeholder="Ex. Consultation — Ana García" /></label>
-      <label>Date<input type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
+      <label>{t("Objet")}<input value={title} onChange={e => setTitle(e.target.value)} placeholder={t("Ex. Consultation — Ana García")} /></label>
+      <label>{t("Date")}<input type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
       <div className="form-row">
-        <label>Début<input type="time" value={start} onChange={e => setStart(e.target.value)} /></label>
-        <label>Fin<input type="time" value={end} onChange={e => setEnd(e.target.value)} /></label>
+        <label>{t("Début")}<input type="time" value={start} onChange={e => setStart(e.target.value)} /></label>
+        <label>{t("Fin")}<input type="time" value={end} onChange={e => setEnd(e.target.value)} /></label>
       </div>
-      <label>Lieu<input value={location} onChange={e => setLocation(e.target.value)} placeholder="Cabinet, visio, adresse…" /></label>
-      <label>Contact lié
+      <label>{t("Lieu")}<input value={location} onChange={e => setLocation(e.target.value)} placeholder={t("Cabinet, visio, adresse…")} /></label>
+      <label>{t("Contact lié")}
         <select value={contactId} onChange={e => setContactId(e.target.value)}>
-          <option value="">— Aucun —</option>
+          <option value="">{t("— Aucun —")}</option>
           {contacts.map(c => <option key={c.id} value={c.id}>{c.first_name} {c.last_name}</option>)}
         </select>
       </label>
-      <label>Notes<input value={notes} onChange={e => setNotes(e.target.value)} /></label>
-      <label className="check-row"><input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} /> Rendez-vous urgent</label>
+      <label>{t("Notes")}<input value={notes} onChange={e => setNotes(e.target.value)} /></label>
+      <label className="check-row"><input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} /> {t("Rendez-vous urgent")}</label>
       {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary full" disabled={busy}>Créer le rendez-vous</button>
+      <button type="submit" className="primary full" disabled={busy}>{t("Créer le rendez-vous")}</button>
     </form>
   );
 }
@@ -229,31 +230,31 @@ export function InvoiceForm({ companies, busy, onSubmit }: {
     e.preventDefault();
     setError("");
     const n = Number(amount.replace(/\s/g, "").replace(",", "."));
-    if (!clientName.trim()) { setError("Le client est obligatoire."); return; }
-    if (!amount.trim() || !Number.isFinite(n) || n < 0) { setError("Montant invalide."); return; }
+    if (!clientName.trim()) { setError(t("Le client est obligatoire.")); return; }
+    if (!amount.trim() || !Number.isFinite(n) || n < 0) { setError(t("Montant invalide.")); return; }
     const err = await onSubmit({ number, clientName, amount: n, issuedAt, dueAt, status });
     if (err) setError(err);
   }
 
   return (
     <form onSubmit={submit} noValidate>
-      <label>Numéro<input value={number} onChange={e => setNumber(e.target.value)} placeholder="Ex. F-2026-001" /></label>
-      <label>Client
+      <label>{t("Numéro")}<input value={number} onChange={e => setNumber(e.target.value)} placeholder={t("Ex. F-2026-001")} /></label>
+      <label>{t("Client")}
         <input list="invoice-company-list" value={clientName} onChange={e => setClientName(e.target.value)} />
         <datalist id="invoice-company-list">{companies.map(c => <option key={c.id} value={c.name} />)}</datalist>
       </label>
-      <label>Montant (€)<input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" /></label>
+      <label>{t("Montant (€)")}<input inputMode="decimal" value={amount} onChange={e => setAmount(e.target.value)} placeholder="0,00" /></label>
       <div className="form-row">
-        <label>Émise le<input type="date" value={issuedAt} onChange={e => setIssuedAt(e.target.value)} /></label>
-        <label>Échéance<input type="date" value={dueAt} onChange={e => setDueAt(e.target.value)} /></label>
+        <label>{t("Émise le")}<input type="date" value={issuedAt} onChange={e => setIssuedAt(e.target.value)} /></label>
+        <label>{t("Échéance")}<input type="date" value={dueAt} onChange={e => setDueAt(e.target.value)} /></label>
       </div>
-      <label>Statut
+      <label>{t("Statut")}
         <select value={status} onChange={e => setStatus(e.target.value as InvoiceStatus)}>
-          <option value="unpaid">À payer</option><option value="paid">Payée</option>
+          <option value="unpaid">{t("À payer")}</option><option value="paid">{t("Payée")}</option>
         </select>
       </label>
       {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary full" disabled={busy}>Créer la facture</button>
+      <button type="submit" className="primary full" disabled={busy}>{t("Créer la facture")}</button>
     </form>
   );
 }
