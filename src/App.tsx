@@ -1,23 +1,25 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import {
-  Activity, AlertTriangle, Bot, CalendarClock, CalendarDays, ChevronDown, LayoutDashboard, LogOut, Menu, Receipt, Search, Settings, Target, Users, X
+  Activity, AlertTriangle, Bot, Inbox as InboxIcon, CalendarClock, CalendarDays, ChevronDown, LayoutDashboard, LogOut, Menu, Receipt, Search, Settings, Target, Users, X
 } from "lucide-react";
 import { supabase, supabaseConfigured, supabaseKey, supabaseUrl } from "./lib/supabase";
 import {
   acceptInvitations, addLead, addOpportunity, addTask, createOrganization, deleteContact, errMsg, exportOrganization, inviteMember, listMemberships,
   loadWorkspace, moveOpportunity, revokeInvitation, setRuleEnabled, setTaskStatus, updateContactStatus,
-  addAppointment, addInvoice, createIntegrationToken, getIntegrationInfo, revokeIntegrationToken, setAppointmentStatus, setInvoiceStatus
+  addAppointment, addInvoice, correctClassification, setEmailStatus, createIntegrationToken, getIntegrationInfo, revokeIntegrationToken, setAppointmentStatus, setInvoiceStatus
 } from "./lib/api";
 import { emptyWorkspace } from "./types";
 import { loc, t, tv } from "./i18n";
 import { LangSwitch } from "./components/LangSwitch";
 import type {
-  AppointmentStatus, DealRow, IntegrationInfo, Invoice, InvoiceStatus, LeadRow, LeadStatus, OrgInfo, TaskStatus, TaskView, Workspace
+  AppointmentStatus, EmailStatus, DealRow, IntegrationInfo, Invoice, InvoiceStatus, LeadRow, LeadStatus, OrgInfo, TaskStatus, TaskView, Workspace
 } from "./types";
 import { AuthScreen, ConfigMissing, Loading, Onboarding } from "./components/AuthScreens";
 import { AppointmentForm, DealForm, InvoiceForm, LeadForm, Modal, TaskForm } from "./components/Modals";
 import { Agenda, Invoices, MakeIntegration, isOverdue, upcomingUrgent } from "./components/Business";
+import { InboxPage, needsReview } from "./components/Inbox";
+import type { CorrectionInput } from "./components/Inbox";
 import { Assistant, Automation, Dashboard, Leads, Pipeline, SettingsPage, Tasks } from "./components/Pages";
 import type { Page } from "./components/Pages";
 
@@ -85,7 +87,7 @@ export default function App() {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const schedule = () => { clearTimeout(timer); timer = setTimeout(() => { void refreshRef.current(); }, 400); };
     const channel = client.channel(`org-${orgId}`);
-    for (const table of ["contacts", "companies", "opportunities", "tasks", "appointments", "invoices", "activities", "automation_runs"]) {
+    for (const table of ["contacts", "companies", "opportunities", "tasks", "appointments", "invoices", "activities", "automation_runs", "emails"]) {
       channel.on("postgres_changes", { event: "*", schema: "public", table, filter: `organization_id=eq.${orgId}` }, schedule);
     }
     channel.subscribe();
@@ -172,6 +174,7 @@ export default function App() {
   const overdue = taskViews.filter(t => t.overdue).length;
   const urgentAppts = useMemo(() => upcomingUrgent(ws.appointments), [ws.appointments]);
   const overdueInvoices = useMemo(() => ws.invoices.filter(isOverdue), [ws.invoices]);
+  const emailsToReview = useMemo(() => ws.emails.filter(needsReview).length, [ws.emails]);
   const invoiceClient = useCallback((i: Invoice) => i.client_name || companyName(i.company_id) || contactName(i.contact_id), [companyName, contactName]);
   const openStageIds = useMemo(
     () => new Set(ws.stages.filter(s => !CLOSED_STAGES.includes(s.name)).map(s => s.id)), [ws.stages]);
@@ -224,6 +227,10 @@ export default function App() {
   const onAddInvoice = (v: Parameters<typeof addInvoice>[1]) =>
     run(async () => { if (orgId) await addInvoice(orgId, v); }, t("Facture créée."))
       .then(err => { if (!err) setModal(null); return err; });
+  const onCorrectEmail = (v: CorrectionInput) => run(() => correctClassification(v), t("Correction enregistrée."));
+  const onEmailStatus = (id: string, status: EmailStatus) => {
+    void run(() => setEmailStatus(id, status), status === "traite" ? t("Email marqué comme traité.") : t("Email ignoré."));
+  };
   const onApptStatus = (id: string, status: AppointmentStatus) => { void run(() => setAppointmentStatus(id, status)); };
   const onInvoiceStatus = (id: string, status: InvoiceStatus) => { void run(() => setInvoiceStatus(id, status)); };
   const onGenerateToken = async () => {
@@ -255,6 +262,7 @@ export default function App() {
 
   const nav = [
     { id: "dashboard" as Page, label: t("Vue d'ensemble"), icon: LayoutDashboard },
+    { id: "inbox" as Page, label: t("Boîte de réception"), icon: InboxIcon },
     { id: "leads" as Page, label: t("Prospects & clients"), icon: Users },
     { id: "pipeline" as Page, label: t("Pipeline commercial"), icon: Target },
     { id: "tasks" as Page, label: t("Tâches & relances"), icon: CalendarClock },
@@ -291,6 +299,7 @@ export default function App() {
               onClick={() => { setPage(n.id); setMobileNav(false); }}>
               <n.icon size={18} /><span>{n.label}</span>
               {n.id === "tasks" && overdue > 0 && <em>{overdue}</em>}
+              {n.id === "inbox" && emailsToReview > 0 && <em>{emailsToReview}</em>}
               {n.id === "agenda" && urgentAppts.length > 0 && <em>{urgentAppts.length}</em>}
               {n.id === "invoices" && overdueInvoices.length > 0 && <em>{overdueInvoices.length}</em>}
             </button>
@@ -359,6 +368,9 @@ export default function App() {
             canDelete={org.role === "owner" || org.role === "admin"} onDelete={setToDelete} />}
           {page === "pipeline" && <Pipeline deals={dealRows} stages={ws.stages} onMove={onMoveDeal} onAdd={() => setModal("deal")} />}
           {page === "tasks" && <Tasks tasks={taskViews} onToggle={onToggleTask} onAdd={() => setModal("task")} />}
+          {page === "inbox" && <InboxPage emails={ws.emails} types={ws.messageTypes} categories={ws.categories} mailboxes={ws.mailboxes}
+            contacts={ws.contacts} tasks={ws.tasks} appointments={ws.appointments} opportunities={ws.opportunities} busy={busy}
+            onCorrect={onCorrectEmail} onStatus={onEmailStatus} onNavigate={setPage} />}
           {page === "agenda" && <Agenda appointments={ws.appointments} contactName={contactName} onStatus={onApptStatus}
             onAdd={d => { setApptDate(d); setModal("appointment"); }} />}
           {page === "invoices" && <Invoices invoices={ws.invoices} clientName={invoiceClient} onStatus={onInvoiceStatus} onAdd={() => setModal("invoice")} />}

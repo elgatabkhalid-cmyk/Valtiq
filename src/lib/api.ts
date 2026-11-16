@@ -1,7 +1,8 @@
 import { supabase } from "./supabase";
 import { t } from "../i18n";
 import type {
-  ActivityRow, Appointment, AppointmentStatus, AutomationRule, AutomationRun, Company, IntegrationInfo, Invoice, InvoiceStatus, Contact, Invitation, LeadStatus, Member, OrgInfo, Opportunity, Role, Stage,
+  ActivityRow, Appointment, AppointmentStatus, AutomationRule, AutomationRun, Company, IntegrationInfo, Invoice, InvoiceStatus,
+  Attachment, ContactCategory, EmailDetail, EmailRow, EmailStatus, Mailbox, MessageType, Contact, Invitation, LeadStatus, Member, OrgInfo, Opportunity, Role, Stage,
   TaskPriority, TaskRow, TaskStatus, Workspace
 } from "../types";
 
@@ -64,7 +65,23 @@ export async function loadWorkspace(orgId: string): Promise<Workspace> {
     .gte("starts_at", since.toISOString()).order("starts_at").limit(2000);
   const invRes2 = await c.from("invoices").select("*").eq("organization_id", orgId)
     .order("due_at", { ascending: true, nullsFirst: false }).limit(2000);
+  // Module emails (migrations v0.6 / v0.7 de l'équipe Automatisation) : ignoré si absent
+  const EMAIL_COLS = "id, organization_id, boite_mail_id, contact_id, expediteur_normalise, expediteur_nom, objet, extrait, recu_le, "
+    + "type_message_id, confiance, niveau_confiance, resume, action_recommandee, points_a_verifier, nature_message, "
+    + "statut_traitement, nb_pieces_jointes, derniere_erreur, traite_le";
+  const [emailsRes, typesRes, catsRes, boxesRes] = await Promise.all([
+    c.from("emails").select(EMAIL_COLS).eq("organization_id", orgId).order("recu_le", { ascending: false }).limit(300),
+    c.from("types_messages").select("id, code, libelle, position").eq("actif", true).order("position"),
+    c.from("categories_contacts").select("id, code, libelle, position").eq("actif", true).order("position"),
+    c.from("boites_mail").select("id, adresse_email, libelle").eq("organization_id", orgId)
+  ]);
   return {
+    emails: ((emailsRes.error ? [] : (emailsRes.data ?? [])) as any[]).map((e: any) => ({
+      ...e, confiance: e.confiance === null ? null : Number(e.confiance), points_a_verifier: e.points_a_verifier ?? []
+    })) as EmailRow[],
+    messageTypes: (typesRes.error ? [] : (typesRes.data ?? [])) as MessageType[],
+    categories: (catsRes.error ? [] : (catsRes.data ?? [])) as ContactCategory[],
+    mailboxes: (boxesRes.error ? [] : (boxesRes.data ?? [])) as Mailbox[],
     appointments: (apptRes.error ? [] : (apptRes.data ?? [])) as Appointment[],
     invoices: ((invRes2.error ? [] : (invRes2.data ?? [])) as any[]).map((i: any) => ({ ...i, amount: Number(i.amount) })) as Invoice[],
     rules: (rulesRes.error ? [] : (rulesRes.data ?? [])) as AutomationRule[],
@@ -244,4 +261,52 @@ export async function createIntegrationToken(orgId: string): Promise<string> {
 
 export async function revokeIntegrationToken(orgId: string) {
   unwrap(await db().rpc("revoke_integration_token", { p_org: orgId }));
+}
+
+// ----- Boîte de réception (module emails) -----
+export async function loadEmailDetail(emailId: string): Promise<EmailDetail> {
+  const c = db();
+  const [body, pieces, runs, hist] = await Promise.all([
+    c.from("emails").select("corps_texte").eq("id", emailId).single(),
+    c.from("pieces_jointes").select("id, nom_fichier, type_mime, taille_octets, statut, motif_rejet, storage_bucket, storage_chemin")
+      .eq("email_id", emailId).order("created_at"),
+    c.from("automation_runs").select("event_key, details").like("event_key", `email:${emailId}:routage%`)
+      .order("created_at", { ascending: false }).limit(1),
+    c.from("historique_classification").select("justification, source, created_at").eq("email_id", emailId)
+      .eq("source", "ia").order("created_at", { ascending: false }).limit(1)
+  ]);
+  const run = ((runs.data ?? []) as any[])[0];
+  return {
+    corps_texte: (unwrap(body) as any)?.corps_texte ?? null,
+    pieces: (pieces.error ? [] : (pieces.data ?? [])) as Attachment[],
+    created: run ? (run.details as EmailDetail["created"]) : null,
+    justification: ((hist.data ?? []) as any[])[0]?.justification ?? null
+  };
+}
+
+/** RGPD : chaque consultation d'un email ou téléchargement de pièce jointe est journalisé. */
+export async function logEmailAccess(kind: "email" | "piece_jointe", id: string, action: "consultation" | "telechargement") {
+  await db().rpc("journaliser_acces", { p_entite_type: kind, p_entite_id: id, p_action: action });
+}
+
+export async function correctClassification(input: {
+  emailId: string; typeCode: string | null; categoryCode: string | null; contactId: string | null;
+  confirmIdentity: boolean; comment: string;
+}) {
+  unwrap(await db().rpc("corriger_classification", {
+    p_email_id: input.emailId, p_type_code: input.typeCode, p_categorie_code: input.categoryCode,
+    p_contact_id: input.contactId, p_confirmer_identite: input.confirmIdentity, p_commentaire: input.comment.trim() || null
+  }));
+}
+
+export async function setEmailStatus(id: string, status: EmailStatus) {
+  unwrap(await db().from("emails").update({ statut_traitement: status }).eq("id", id));
+}
+
+export async function attachmentUrl(p: Attachment): Promise<string> {
+  if (!p.storage_chemin) throw new Error(t("Ce fichier n'est pas disponible."));
+  const { data, error } = await db().storage.from(p.storage_bucket).createSignedUrl(p.storage_chemin, 120);
+  if (error || !data) throw new Error(t("Ce fichier n'est pas disponible."));
+  await logEmailAccess("piece_jointe", p.id, "telechargement");
+  return data.signedUrl;
 }
