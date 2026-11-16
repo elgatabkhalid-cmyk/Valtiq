@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { supabase } from "../lib/supabase";
 import { errMsg } from "../lib/api";
-import { t } from "../i18n";
+import { getLang, t } from "../i18n";
 import { LangSwitch } from "./LangSwitch";
 
 function Shell({ children }: { children: ReactNode }) {
@@ -60,7 +60,7 @@ export function AuthScreen() {
         if (err) throw err;
       } else {
         const { data, error: err } = await supabase.auth.signUp({
-          email: email.trim(), password, options: { data: { full_name: fullName.trim(), privacy_accepted_at: new Date().toISOString() } }
+          email: email.trim(), password, options: { data: { full_name: fullName.trim(), privacy_accepted_at: new Date().toISOString(), lang: getLang() } }
         });
         if (err) throw err;
         if (!data.session) {

@@ -1,0 +1,25 @@
+{{ $l := "es" }}{{ if .Data.lang }}{{ $l = .Data.lang }}{{ end }}<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f2f3f5;font-family:Arial,Helvetica,sans-serif;color:#16191c">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f2f3f5;padding:32px 12px">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#ffffff;border-radius:12px;border:1px solid #e1e4e8">
+<tr><td style="padding:22px 28px;border-bottom:1px solid #e9ebee">
+<span style="display:inline-block;width:30px;height:30px;line-height:30px;text-align:center;border-radius:8px;background:#1c2024;color:#ffffff;font-weight:bold;font-size:17px">V</span>
+<span style="font-weight:bold;letter-spacing:2px;font-size:15px;vertical-align:middle;margin-left:8px">VALTIQ</span>
+</td></tr>
+<tr><td style="padding:28px">
+<h1 style="margin:0 0 16px;font-size:21px;line-height:1.3">{{ if eq $l "fr" }}Confirmez votre compte{{ else if eq $l "en" }}Confirm your account{{ else }}Confirma tu cuenta{{ end }}</h1>
+<p style="margin:0 0 12px;font-size:15px;line-height:1.6">{{ if eq $l "fr" }}Bonjour{{ if .Data.full_name }} {{ .Data.full_name }}{{ end }},{{ else if eq $l "en" }}Hello{{ if .Data.full_name }} {{ .Data.full_name }}{{ end }},{{ else }}Hola{{ if .Data.full_name }} {{ .Data.full_name }}{{ end }},{{ end }}</p>
+<p style="margin:0 0 24px;font-size:15px;line-height:1.6">{{ if eq $l "fr" }}Merci d'avoir créé votre compte VALTIQ. Cliquez sur le bouton pour confirmer votre email et commencer.{{ else if eq $l "en" }}Thanks for creating your VALTIQ account. Click the button to confirm your email and get started.{{ else }}Gracias por crear tu cuenta en VALTIQ. Pulsa el botón para confirmar tu email y empezar.{{ end }}</p>
+<table role="presentation" cellpadding="0" cellspacing="0"><tr><td style="border-radius:8px;background:#1c2024">
+<a href="{{ .ConfirmationURL }}" style="display:inline-block;padding:13px 22px;color:#ffffff;text-decoration:none;font-weight:bold;font-size:15px">{{ if eq $l "fr" }}Confirmer mon compte{{ else if eq $l "en" }}Confirm my account{{ else }}Confirmar mi cuenta{{ end }}</a>
+</td></tr></table>
+<p style="margin:24px 0 6px;font-size:13px;line-height:1.5;color:#5d6670">{{ if eq $l "fr" }}Si vous n'avez pas créé ce compte, ignorez cet email : il ne sera pas activé.{{ else if eq $l "en" }}If you didn't create this account, ignore this email: it won't be activated.{{ else }}Si no has creado esta cuenta, ignora este email: no se activará.{{ end }}</p>
+<p style="margin:16px 0 4px;font-size:12px;color:#5d6670">{{ if eq $l "fr" }}Si le bouton ne fonctionne pas, copiez ce lien dans votre navigateur :{{ else if eq $l "en" }}If the button doesn't work, copy this link into your browser:{{ else }}Si el botón no funciona, copia este enlace en tu navegador:{{ end }}</p>
+<p style="margin:0;font-size:12px;word-break:break-all"><a href="{{ .ConfirmationURL }}" style="color:#3b5bdb">{{ .ConfirmationURL }}</a></p>
+</td></tr>
+<tr><td style="padding:16px 28px;border-top:1px solid #e9ebee;font-size:11px;color:#8b929b">{{ if eq $l "fr" }}Cet email a été envoyé automatiquement. Ne répondez pas à cette adresse.{{ else if eq $l "en" }}This email was sent automatically. Please don't reply to this address.{{ else }}Este email se ha enviado automáticamente. No respondas a esta dirección.{{ end }}</td></tr>
+</table>
+</td></tr></table>
+</body></html>
