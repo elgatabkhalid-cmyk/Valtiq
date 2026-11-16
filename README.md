@@ -67,3 +67,16 @@ Application React + TypeScript + Vite, reliée à Supabase (authentification et 
 - Dates et montants au format de la langue choisie (es-ES, fr-FR, en-GB).
 - Pages légales réécrites pour une société établie en **Espagne** (LSSI-CE, RGPD, LOPDGDD, AEPD), dans les trois langues,
   et complétées avec le traitement des emails classés par IA. Données à compléter dans `src/legal.config.ts`.
+
+
+## Version 0.7.0 — Boîte de réception
+
+Nouvelle page **Boîte de réception** pour suivre le module emails de l'équipe Automatisation (migrations v0.6 / v0.7) :
+- Liste des emails reçus avec onglets À vérifier · Classés · Ignorés · Erreurs · Tous, et compteur « à vérifier » dans le menu.
+- Détail : résumé et niveau de confiance de l'IA, points à vérifier, **ce qui a été créé dans le CRM** (note, tâche, rendez-vous, opportunité), texte de l'email et pièces jointes.
+- Corrections via `corriger_classification` (type de message, contact, catégorie, confirmation d'identité) ; « Marquer comme traité » et « Ignorer ».
+- RGPD : chaque ouverture d'email et de pièce jointe est journalisée via `journaliser_acces`.
+- Aucune modification de la base ni des fonctions `email_*`.
+
+À coordonner avec l'équipe Automatisation : pour un affichage **en direct** des nouveaux emails, ajouter la table `emails`
+à la publication `supabase_realtime` (sinon ils apparaissent au rechargement de la page).

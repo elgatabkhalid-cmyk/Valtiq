@@ -13,6 +13,8 @@ export type Contact = {
   id: string; organization_id: string; company_id: string | null; first_name: string; last_name: string;
   email: string | null; phone: string | null; source: string | null; status: LeadStatus;
   owner_id: string | null; created_at: string;
+  // Ajoutés par le module emails (v0.6)
+  categorie_id?: string | null; statut_identite?: "confirmee" | "probable" | "incertaine";
 };
 export type Stage = { id: string; organization_id: string; name: string; position: number; probability: number };
 export type Opportunity = {
@@ -52,16 +54,38 @@ export type Invoice = {
   issued_at: string | null; due_at: string | null; paid_at: string | null; status: InvoiceStatus;
   notes: string | null; source: string | null; external_id: string | null; created_at: string;
 };
+export type EmailStatus = "recu" | "en_analyse" | "classe" | "a_verifier" | "traite" | "ignore" | "erreur";
+export type EmailRow = {
+  id: string; organization_id: string; boite_mail_id: string; contact_id: string | null;
+  expediteur_normalise: string; expediteur_nom: string | null; objet: string | null; extrait: string | null;
+  recu_le: string; type_message_id: string | null; confiance: number | null;
+  niveau_confiance: "eleve" | "moyen" | "faible" | null; resume: string | null; action_recommandee: string | null;
+  points_a_verifier: string[]; nature_message: string; statut_traitement: EmailStatus;
+  nb_pieces_jointes: number; derniere_erreur: string | null; traite_le: string | null;
+};
+export type MessageType = { id: string; code: string; libelle: string; position: number };
+export type ContactCategory = { id: string; code: string; libelle: string; position: number };
+export type Mailbox = { id: string; adresse_email: string; libelle: string | null };
+export type Attachment = {
+  id: string; nom_fichier: string; type_mime: string | null; taille_octets: number | null;
+  statut: string; motif_rejet: string | null; storage_bucket: string; storage_chemin: string | null;
+};
+export type EmailDetail = {
+  corps_texte: string | null; pieces: Attachment[];
+  created: { tache_id?: string; activite_id?: string; rdv_id?: string; opportunite_id?: string; garde?: string; erreur?: string } | null;
+  justification: string | null;
+};
 export type IntegrationInfo = { token_hint: string; created_at: string; last_used_at: string | null } | null;
 
 export type Workspace = {
   companies: Company[]; contacts: Contact[]; stages: Stage[]; opportunities: Opportunity[];
   tasks: TaskRow[]; activities: ActivityRow[]; members: Member[]; invitations: Invitation[];
   rules: AutomationRule[]; runs: AutomationRun[]; appointments: Appointment[]; invoices: Invoice[];
+  emails: EmailRow[]; messageTypes: MessageType[]; categories: ContactCategory[]; mailboxes: Mailbox[];
 };
 export const emptyWorkspace: Workspace = {
   companies: [], contacts: [], stages: [], opportunities: [], tasks: [], activities: [], members: [], invitations: [], rules: [], runs: [],
-  appointments: [], invoices: []
+  appointments: [], invoices: [], emails: [], messageTypes: [], categories: [], mailboxes: []
 };
 
 // Vues prêtes à afficher

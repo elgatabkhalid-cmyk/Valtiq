@@ -10,7 +10,7 @@ import type {
 import { loc, t, tv } from "../i18n";
 import { LangSwitch } from "./LangSwitch";
 
-export type Page = "dashboard" | "leads" | "pipeline" | "tasks" | "agenda" | "invoices" | "automation" | "assistant" | "settings";
+export type Page = "dashboard" | "inbox" | "leads" | "pipeline" | "tasks" | "agenda" | "invoices" | "automation" | "assistant" | "settings";
 
 export const money = (n: number) =>
   new Intl.NumberFormat(loc(), { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
@@ -232,10 +232,15 @@ const RULE_TEXT: Record<string, { desc: string; detail: (c: Record<string, unkno
 };
 
 function runSummary(r: AutomationRunData): string {
-  if (r.status === "failed") return t("Échec : {error}", { error: String(r.details?.error ?? t("erreur inconnue")) });
+  if (r.status === "failed") return t("Échec : {error}", { error: String(r.details?.error ?? r.details?.erreur ?? t("erreur inconnue")) });
   if (r.event_key.startsWith("stale:")) return t("Tâche de relance créée");
   if (r.event_key.startsWith("contact:")) return t("Tâche de premier contact créée");
   if (r.event_key.startsWith("opp:")) return t("Changement d'étape tracé");
+  if (r.event_key.startsWith("email:")) {
+    if (r.event_key.includes(":routage")) return t("Email traité : actions créées dans le CRM");
+    if (r.event_key.endsWith(":reception")) return t("Email reçu");
+    return t("Email");
+  }
   if (r.event_key.startsWith("make:")) {
     const types: Record<string, string> = {
       contact: "prospect", lead: "prospect", prospect: "prospect", company: "entreprise", empresa: "entreprise", entreprise: "entreprise",
@@ -289,7 +294,7 @@ export function Automation({ rules, runs, canEdit, onToggle }: {
               {runs.map(r => (
                 <tr key={r.id}>
                   <td>{new Date(r.created_at).toLocaleString(loc(), { dateStyle: "short", timeStyle: "short" })}</td>
-                  <td>{r.event_key.startsWith("make:") ? t("Intégration Make") : ruleName(r.rule_id)}</td>
+                  <td>{r.event_key.startsWith("make:") ? t("Intégration Make") : r.event_key.startsWith("email:") ? t("Emails entrants") : ruleName(r.rule_id)}</td>
                   <td><span className={`status ${r.status === "failed" ? "lost" : "qualified"}`}>{runSummary(r)}</span></td>
                 </tr>
               ))}
