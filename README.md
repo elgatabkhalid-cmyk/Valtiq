@@ -55,3 +55,15 @@ Application React + TypeScript + Vite, reliée à Supabase (authentification et 
   `{"p_token": "...", "p_type": "contact|company|opportunity|appointment|invoice", "p_data": {...}}`.
   Dédoublonnage : `external_id`, puis email (contacts), nom (entreprises) ou numéro (factures).
   Chaque appel est journalisé dans la page Automatisations.
+
+
+## Version 0.6.0 — Application en trois langues (ES / FR / EN)
+
+- Sélecteur de langue **ES · FR · EN** : écran de connexion, menu latéral, Paramètres et pages légales.
+  Le choix est mémorisé sur l'appareil ; par défaut, la langue du navigateur (espagnol si elle n'est ni le français ni l'anglais).
+- Les textes sont écrits en français dans le code et servent de clé : `t("Texte français")`.
+  Traductions dans `src/i18n.es.ts` et `src/i18n.en.ts`. Les valeurs venant de la base (étapes du pipeline, sources) passent par `tv()`.
+  **Tout nouveau texte doit être ajouté aux deux fichiers**, sinon il s'affiche en français.
+- Dates et montants au format de la langue choisie (es-ES, fr-FR, en-GB).
+- Pages légales réécrites pour une société établie en **Espagne** (LSSI-CE, RGPD, LOPDGDD, AEPD), dans les trois langues,
+  et complétées avec le traitement des emails classés par IA. Données à compléter dans `src/legal.config.ts`.

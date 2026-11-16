@@ -1,16 +1,19 @@
-// Informations légales de l'éditeur. Remplacez chaque valeur « [À COMPLÉTER … ] » avant toute mise en service
-// commerciale. Tant qu'une valeur contient « [À COMPLÉTER », les pages légales affichent un bandeau « provisoire ».
+// Datos legales del titular del servicio (empresa establecida en España).
+// Sustituya cada valor que empieza por « [ » antes de cualquier uso comercial.
+// Mientras quede alguno, las páginas legales muestran un aviso de « documento provisional ».
 export const LEGAL = {
   productName: "VALTIQ",
-  companyName: "[À COMPLÉTER : dénomination sociale]",
-  legalForm: "[À COMPLÉTER : forme juridique, ex. SAS]",
-  shareCapital: "[À COMPLÉTER : capital social]",
-  address: "[À COMPLÉTER : adresse du siège social]",
-  registration: "[À COMPLÉTER : numéro SIREN / RCS]",
-  publicationDirector: "[À COMPLÉTER : nom du directeur de la publication]",
-  contactEmail: "[À COMPLÉTER : adresse email de contact]",
-  accountRetention: "[À COMPLÉTER : durée de conservation après la fin du contrat, ex. 12 mois]",
-  lastUpdate: "15 novembre 2026 (version provisoire)"
+  companyName: "[A COMPLETAR · razón social]",
+  legalForm: "[A COMPLETAR · forma jurídica, p. ej. S.L.]",
+  taxId: "[A COMPLETAR · NIF]",
+  registration: "[A COMPLETAR · Registro Mercantil de …, tomo, folio, hoja]",
+  address: "[A COMPLETAR · domicilio social]",
+  contactEmail: "[A COMPLETAR · email de contacto]",
+  aiProvider: "[A COMPLETAR · proveedor de IA usado para clasificar los correos]",
+  /** Meses de conservación tras el fin del contrato (null = a completar). */
+  retentionMonths: null as number | null,
+  lastUpdate: "2026-11-16"
 };
 
-export const legalIncomplete = Object.values(LEGAL).some(v => v.includes("[À COMPLÉTER"));
+export const isPending = (v: string | number | null) => v === null || (typeof v === "string" && v.startsWith("["));
+export const legalIncomplete = Object.values(LEGAL).some(isPending);

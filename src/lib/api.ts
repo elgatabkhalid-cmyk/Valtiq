@@ -1,11 +1,12 @@
 import { supabase } from "./supabase";
+import { t } from "../i18n";
 import type {
   ActivityRow, Appointment, AppointmentStatus, AutomationRule, AutomationRun, Company, IntegrationInfo, Invoice, InvoiceStatus, Contact, Invitation, LeadStatus, Member, OrgInfo, Opportunity, Role, Stage,
   TaskPriority, TaskRow, TaskStatus, Workspace
 } from "../types";
 
 function db() {
-  if (!supabase) throw new Error("Supabase n'est pas configuré (fichier .env).");
+  if (!supabase) throw new Error(t("Supabase n'est pas configuré (fichier .env)."));
   return supabase;
 }
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -16,12 +17,14 @@ function unwrap(res: { data: any; error: { message: string } | null }): any {
 
 export function errMsg(e: unknown): string {
   const m = e instanceof Error ? e.message : String(e);
-  if (/Invalid login credentials/i.test(m)) return "Email ou mot de passe incorrect.";
-  if (/User already registered/i.test(m)) return "Un compte existe déjà avec cet email.";
-  if (/Email not confirmed/i.test(m)) return "Email non confirmé : cliquez sur le lien reçu par email.";
-  if (/duplicate key/i.test(m) && /invitations/i.test(m)) return "Une invitation est déjà en attente pour cet email.";
-  if (/row-level security/i.test(m)) return "Action refusée : vous n'avez pas les droits nécessaires.";
-  return m;
+  if (/Invalid login credentials/i.test(m)) return t("Email ou mot de passe incorrect.");
+  if (/User already registered/i.test(m)) return t("Un compte existe déjà avec cet email.");
+  if (/Email not confirmed/i.test(m)) return t("Email non confirmé : cliquez sur le lien reçu par email.");
+  if (/duplicate key/i.test(m) && /invitations/i.test(m)) return t("Une invitation est déjà en attente pour cet email.");
+  if (/row-level security/i.test(m)) return t("Action refusée : vous n'avez pas les droits nécessaires.");
+  if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return t("Connexion impossible. Vérifiez votre accès à Internet puis réessayez.");
+  // Messages connus renvoyés par la base (ex. « Action réservée aux propriétaires et administrateurs. »)
+  return t(m);
 }
 
 export async function listMemberships(userId: string): Promise<OrgInfo[]> {
