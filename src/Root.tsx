@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import App from "./App";
-import { LegalPage } from "./components/LegalPages";
+// Pages légales : chargées seulement quand on les ouvre
+const LegalPage = lazy(() => import("./components/LegalPages").then(m => ({ default: m.LegalPage })));
 import { useLang } from "./i18n";
 
 function route(): "mentions" | "privacy" | null {
@@ -18,5 +19,5 @@ export default function Root() {
     window.addEventListener("hashchange", f);
     return () => window.removeEventListener("hashchange", f);
   }, []);
-  return r ? <LegalPage kind={r} /> : <App />;
+  return r ? <Suspense fallback={null}><LegalPage kind={r} /></Suspense> : <App />;
 }
