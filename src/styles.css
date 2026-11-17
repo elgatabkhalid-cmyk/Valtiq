@@ -148,3 +148,6 @@ button:disabled{opacity:.6;cursor:not-allowed}
 .inbox-placeholder{min-height:200px;display:grid;place-items:center}
 @media(max-width:1050px){.inbox{grid-template-columns:1fr}.inbox.has-selection .inbox-list{display:none}.inbox:not(.has-selection) .inbox-placeholder{display:none}.mail-back{display:inline-flex}.mail-rows{max-height:none}}
 @media(max-width:760px){.correct-grid{grid-template-columns:1fr}.facts{grid-template-columns:1fr}.facts dd{margin-bottom:6px}}
+/* ===== mot de passe oublié ===== */
+.auth-card .forgot-link{justify-self:end;margin:-6px 0 4px;font-size:12px;color:var(--muted)}
+.auth-card .forgot-link:hover{color:#e3e6e9}

@@ -490,5 +490,20 @@ export const ES: Record<string, string> = {
   "— Non classé —": "— Sin clasificar —",
   "— Non identifié —": "— No identificado —",
   "{n} Ko": "{n} KB",
-  "{n} Mo": "{n} MB"
+  "{n} Mo": "{n} MB",
+  // Mot de passe oublié
+  "Choisissez le nouveau mot de passe de votre compte (8 caractères minimum).": "Elige la nueva contraseña de tu cuenta (mínimo 8 caracteres).",
+  "Confirmez le mot de passe": "Confirma la contraseña",
+  "Enregistrer le mot de passe": "Guardar la contraseña",
+  "Envoyer le lien": "Enviar el enlace",
+  "Indiquez l'email de votre compte : nous vous enverrons un lien pour choisir un nouveau mot de passe.": "Indica el email de tu cuenta y te enviaremos un enlace para elegir una contraseña nueva.",
+  "Le nouveau mot de passe doit être différent de l'ancien.": "La nueva contraseña debe ser distinta de la anterior.",
+  "Les deux mots de passe ne sont pas identiques.": "Las dos contraseñas no coinciden.",
+  "Mot de passe modifié.": "Contraseña cambiada.",
+  "Mot de passe oublié": "Contraseña olvidada",
+  "Mot de passe oublié ?": "¿Olvidaste tu contraseña?",
+  "Nouveau mot de passe": "Nueva contraseña",
+  "Retour à la connexion": "Volver a iniciar sesión",
+  "Si un compte existe avec cet email, vous allez recevoir un lien pour choisir un nouveau mot de passe. Pensez à vérifier vos spams.": "Si existe una cuenta con este email, recibirás un enlace para elegir una contraseña nueva. Revisa también la carpeta de spam.",
+  "Trop de tentatives. Patientez quelques minutes puis réessayez.": "Demasiados intentos. Espera unos minutos y vuelve a intentarlo."
 };

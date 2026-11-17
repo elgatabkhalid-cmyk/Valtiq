@@ -23,6 +23,8 @@ export function errMsg(e: unknown): string {
   if (/Email not confirmed/i.test(m)) return t("Email non confirmé : cliquez sur le lien reçu par email.");
   if (/duplicate key/i.test(m) && /invitations/i.test(m)) return t("Une invitation est déjà en attente pour cet email.");
   if (/row-level security/i.test(m)) return t("Action refusée : vous n'avez pas les droits nécessaires.");
+  if (/should be different from the old password/i.test(m)) return t("Le nouveau mot de passe doit être différent de l'ancien.");
+  if (/rate limit|too many requests|for security purposes/i.test(m)) return t("Trop de tentatives. Patientez quelques minutes puis réessayez.");
   if (/Failed to fetch|NetworkError|Load failed/i.test(m)) return t("Connexion impossible. Vérifiez votre accès à Internet puis réessayez.");
   // Messages connus renvoyés par la base (ex. « Action réservée aux propriétaires et administrateurs. »)
   return t(m);

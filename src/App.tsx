@@ -3,7 +3,7 @@ import type { Session } from "@supabase/supabase-js";
 import {
   Activity, AlertTriangle, Bot, Inbox as InboxIcon, CalendarClock, CalendarDays, ChevronDown, LayoutDashboard, LogOut, Menu, Receipt, Search, Settings, Target, Users, X
 } from "lucide-react";
-import { supabase, supabaseConfigured, supabaseKey, supabaseUrl } from "./lib/supabase";
+import { recoveryInUrl, supabase, supabaseConfigured, supabaseKey, supabaseUrl } from "./lib/supabase";
 import {
   acceptInvitations, addLead, addOpportunity, addTask, createOrganization, deleteContact, errMsg, exportOrganization, inviteMember, listMemberships,
   loadWorkspace, moveOpportunity, revokeInvitation, setRuleEnabled, setTaskStatus, updateContactStatus,
@@ -15,7 +15,7 @@ import { LangSwitch } from "./components/LangSwitch";
 import type {
   AppointmentStatus, EmailStatus, DealRow, IntegrationInfo, Invoice, InvoiceStatus, LeadRow, LeadStatus, OrgInfo, TaskStatus, TaskView, Workspace
 } from "./types";
-import { AuthScreen, ConfigMissing, Loading, Onboarding } from "./components/AuthScreens";
+import { AuthScreen, ConfigMissing, Loading, NewPasswordScreen, Onboarding } from "./components/AuthScreens";
 import { AppointmentForm, DealForm, InvoiceForm, LeadForm, Modal, TaskForm } from "./components/Modals";
 import { Agenda, Invoices, MakeIntegration, isOverdue, upcomingUrgent } from "./components/Business";
 import { InboxPage, needsReview } from "./components/Inbox";
@@ -30,6 +30,7 @@ const CLOSED_STAGES = ["Gagné", "Perdu"];
 
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined);
+  const [recovery, setRecovery] = useState(recoveryInUrl);
   const [orgs, setOrgs] = useState<OrgInfo[] | null>(null);
   const [orgId, setOrgId] = useState<string | null>(null);
   const [ws, setWs] = useState<Workspace>(emptyWorkspace);
@@ -50,7 +51,10 @@ export default function App() {
   useEffect(() => {
     if (!supabase) { setSession(null); return; }
     supabase.auth.getSession().then(({ data }) => setSession(data.session));
-    const { data } = supabase.auth.onAuthStateChange((_event, s) => setSession(s));
+    const { data } = supabase.auth.onAuthStateChange((event, s) => {
+      if (event === "PASSWORD_RECOVERY") setRecovery(true);
+      setSession(s);
+    });
     return () => data.subscription.unsubscribe();
   }, []);
 
@@ -260,6 +264,7 @@ export default function App() {
   if (!supabaseConfigured) return <ConfigMissing />;
   if (session === undefined) return <Loading />;
   if (!session) return <AuthScreen />;
+  if (recovery) return <NewPasswordScreen onDone={() => { setRecovery(false); setNotice({ text: t("Mot de passe modifié."), error: false }); }} />;
   if (orgs === null) return <Loading text={t("Chargement de votre espace…")} />;
   if (orgs.length === 0 || !org) return <Onboarding onCreate={createOrg} onSignOut={signOut} />;
 
