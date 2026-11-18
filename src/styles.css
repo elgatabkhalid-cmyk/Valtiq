@@ -532,3 +532,6 @@ th.amount, td.amount { text-align: right; white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
 }
+/* Mobile : les champs à copier (URL, clés) restent dans la largeur de l'écran */
+.copy-field, .copy-field > div { min-width: 0; max-width: 100%; }
+.copy-field code { min-width: 0; overflow-wrap: anywhere; word-break: break-all; }
