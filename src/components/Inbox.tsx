@@ -86,7 +86,7 @@ export function InboxPage({ emails, types, categories, mailboxes, contacts, task
         desc="Les emails reçus par l'automatisation, leur classement par l'IA et ce qui a été créé dans le CRM." />
       {mailboxes.length === 0 && emails.length === 0 ? (
         <section className="panel"><div className="empty">
-          <InboxIcon size={22} /><p>{t("Aucune boîte mail n'est encore connectée à cette organisation. La connexion se fait dans le scénario Make de l'automatisation des emails.")}</p>
+          <InboxIcon size={24} aria-hidden="true" /><p>{t("Aucune boîte mail n'est encore connectée à cette organisation. La connexion se fait dans le scénario Make de l'automatisation des emails.")}</p>
         </div></section>
       ) : (
         <div className={`inbox ${selected ? "has-selection" : ""}`}>
@@ -118,14 +118,14 @@ export function InboxPage({ emails, types, categories, mailboxes, contacts, task
                 </li>
               ))}
             </ul>
-            {rows.length === 0 && <div className="empty">{t("Aucun email dans cette catégorie.")}</div>}
+            {rows.length === 0 && <div className="empty"><InboxIcon size={24} aria-hidden="true" />{t("Aucun email dans cette catégorie.")}</div>}
           </section>
           {selected ? (
             <EmailPanel key={selected.id} email={selected} types={types} categories={categories} contacts={contacts}
               tasks={tasks} appointments={appointments} opportunities={opportunities} busy={busy}
               onBack={() => setSelectedId(null)} onCorrect={onCorrect} onStatus={onStatus} onNavigate={onNavigate} />
           ) : (
-            <section className="panel inbox-placeholder"><div className="empty">{t("Sélectionnez un email pour voir le détail.")}</div></section>
+            <section className="panel inbox-placeholder"><div className="empty"><InboxIcon size={24} aria-hidden="true" />{t("Sélectionnez un email pour voir le détail.")}</div></section>
           )}
         </div>
       )}
