@@ -1,19 +1,5 @@
--- =====================================================================
 -- VALTIQ — migration v0.5 : rendez-vous, factures, intégration Make, temps réel
--- À exécuter UNE SEULE FOIS (après migration_v0_4_automations.sql).
---
---  1. Table appointments  (rendez-vous, avec drapeau « urgent »)
---  2. Table invoices      (factures payées / à payer)
---  3. external_id sur contacts et opportunities (dédoublonnage des imports)
---  4. integration_tokens  : une clé d'intégration par organisation (stockée hachée)
---  5. make_ingest()       : point d'entrée appelé par Make (HTTP POST /rest/v1/rpc/make_ingest)
---     → chaque appel est authentifié par la clé de l'organisation, jamais par la clé secrète Supabase
---  6. Publication temps réel (supabase_realtime) pour l'affichage en direct
--- =====================================================================
 
--- ---------------------------------------------------------------------
--- 1. Rendez-vous
--- ---------------------------------------------------------------------
 create type public.appointment_status as enum ('scheduled','done','cancelled');
 
 create table public.appointments (
@@ -46,9 +32,6 @@ create trigger appointments_set_updated_at
   before update on public.appointments
   for each row execute function public.set_updated_at();
 
--- ---------------------------------------------------------------------
--- 2. Factures
--- ---------------------------------------------------------------------
 create table public.invoices (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
@@ -78,7 +61,6 @@ create index on public.invoices (organization_id, number);
 create index on public.invoices (company_id);
 create index on public.invoices (contact_id);
 
--- paid_at toujours cohérent avec le statut
 create or replace function public.invoices_sync_paid()
 returns trigger language plpgsql set search_path = public
 as $$
@@ -93,9 +75,6 @@ create trigger invoices_sync_paid
   before insert or update on public.invoices
   for each row execute function public.invoices_sync_paid();
 
--- ---------------------------------------------------------------------
--- 3. Identifiants externes (dédoublonnage des imports)
--- ---------------------------------------------------------------------
 alter table public.contacts      add column if not exists external_id text;
 alter table public.opportunities add column if not exists external_id text;
 create unique index if not exists contacts_org_external_id      on public.contacts (organization_id, external_id);
@@ -103,9 +82,6 @@ create unique index if not exists opportunities_org_external_id on public.opport
 create index if not exists contacts_org_email on public.contacts (organization_id, lower(email));
 create index if not exists companies_org_name on public.companies (organization_id, lower(name));
 
--- ---------------------------------------------------------------------
--- RLS des nouvelles tables : tout membre lit/écrit, owner/admin suppriment
--- ---------------------------------------------------------------------
 alter table public.appointments enable row level security;
 alter table public.invoices     enable row level security;
 
@@ -123,9 +99,6 @@ end $$;
 revoke all on public.appointments, public.invoices from anon;
 grant select, insert, update, delete on public.appointments, public.invoices to authenticated;
 
--- ---------------------------------------------------------------------
--- 4. Clés d'intégration (une par organisation, stockée sous forme de hash SHA-256)
--- ---------------------------------------------------------------------
 create table public.integration_tokens (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null unique references public.organizations(id) on delete cascade,
@@ -136,7 +109,6 @@ create table public.integration_tokens (
   last_used_at timestamptz
 );
 alter table public.integration_tokens enable row level security;
--- aucune policy : la table n'est accessible qu'au travers des fonctions ci-dessous
 revoke all on public.integration_tokens from anon, authenticated;
 
 create or replace function public._hash_token(p_token text)
@@ -144,7 +116,6 @@ returns text language sql immutable set search_path = public
 as $$ select encode(extensions.digest(p_token, 'sha256'), 'hex') $$;
 revoke all on function public._hash_token(text) from public, anon, authenticated;
 
--- Crée (ou remplace) la clé de l'organisation. La clé en clair n'est renvoyée qu'une seule fois.
 create or replace function public.create_integration_token(p_org uuid)
 returns text language plpgsql security definer set search_path = public
 as $$
@@ -189,10 +160,6 @@ grant execute on function public.create_integration_token(uuid) to authenticated
 grant execute on function public.integration_token_info(uuid)   to authenticated;
 grant execute on function public.revoke_integration_token(uuid) to authenticated;
 
--- ---------------------------------------------------------------------
--- 5. Point d'entrée Make
--- ---------------------------------------------------------------------
--- Lecture tolérante des champs envoyés par Make
 create or replace function public._mk_text(p jsonb, k text)
 returns text language sql immutable set search_path = public
 as $$ select nullif(trim(p ->> k), '') $$;
@@ -219,27 +186,15 @@ exception when others then
   raise exception 'Champ "%" : date invalide (%). Format attendu : 2026-11-20', k, v;
 end $$;
 
--- Accepte 1500.5 / 1500,5 / 1.500,50 / 1,500.50 / "1 500 €"
 create or replace function public._mk_num(p jsonb, k text)
 returns numeric language plpgsql immutable set search_path = public
 as $$
-declare
-  raw text := p ->> k;
-  v text := nullif(regexp_replace(coalesce(p ->> k, ''), '[^0-9,.\-]', '', 'g'), '');
+declare v text := nullif(replace(replace(trim(p ->> k), ' ', ''), ',', '.'), '');
 begin
   if v is null then return null; end if;
-  if position(',' in v) > 0 and position('.' in v) > 0 then
-    if strpos(reverse(v), ',') < strpos(reverse(v), '.') then
-      v := replace(replace(v, '.', ''), ',', '.');   -- 1.500,50
-    else
-      v := replace(v, ',', '');                      -- 1,500.50
-    end if;
-  elsif position(',' in v) > 0 then
-    v := replace(v, ',', '.');                       -- 1500,50
-  end if;
   return v::numeric;
 exception when others then
-  raise exception 'Champ "%" : nombre invalide (%)', k, raw;
+  raise exception 'Champ "%" : nombre invalide (%)', k, v;
 end $$;
 
 create or replace function public._mk_bool(p jsonb, k text)
@@ -255,7 +210,6 @@ revoke all on function public._mk_date(jsonb, text) from public, anon, authentic
 revoke all on function public._mk_num(jsonb, text)  from public, anon, authenticated;
 revoke all on function public._mk_bool(jsonb, text) from public, anon, authenticated;
 
--- Retrouve ou crée une entreprise par son nom
 create or replace function public._mk_company(p_org uuid, p_name text)
 returns uuid language plpgsql security definer set search_path = public
 as $$
@@ -271,7 +225,6 @@ begin
 end $$;
 revoke all on function public._mk_company(uuid, text) from public, anon, authenticated;
 
--- Retrouve un contact par email
 create or replace function public._mk_contact_by_email(p_org uuid, p_email text)
 returns uuid language sql stable security definer set search_path = public
 as $$
@@ -293,7 +246,6 @@ declare
   v_company uuid; v_contact uuid; v_stage uuid;
   v_ext text; v_status text; v_number text;
 begin
-  -- Authentification par la clé de l'organisation
   if p_token is null or char_length(p_token) < 20 then
     raise exception 'Clé d''intégration manquante ou invalide.' using errcode = '42501';
   end if;
@@ -313,7 +265,6 @@ begin
 
   v_ext := public._mk_text(p_data, 'external_id');
 
-  -- ---------------------------------------------------------------- contact / lead
   if v_type in ('contact', 'lead', 'prospect') then
     v_email := lower(public._mk_text(p_data, 'email'));
     if v_email is not null and v_email !~ '^\S+@\S+\.\S+$' then
@@ -355,7 +306,6 @@ begin
       where id = v_id;
     end if;
 
-  -- ---------------------------------------------------------------- company
   elsif v_type in ('company', 'empresa', 'entreprise') then
     v_name := public._mk_text(p_data, 'name');
     if v_name is null then raise exception 'Une entreprise doit avoir un "name".'; end if;
@@ -377,7 +327,6 @@ begin
       where id = v_id;
     end if;
 
-  -- ---------------------------------------------------------------- opportunity
   elsif v_type in ('opportunity', 'deal', 'oportunidad', 'opportunite') then
     v_name := public._mk_text(p_data, 'title');
     if v_name is null then raise exception 'Une opportunité doit avoir un "title".'; end if;
@@ -408,7 +357,6 @@ begin
       where id = v_id;
     end if;
 
-  -- ---------------------------------------------------------------- appointment
   elsif v_type in ('appointment', 'cita', 'rdv', 'rendez-vous', 'meeting') then
     v_name := public._mk_text(p_data, 'title');
     if v_name is null then raise exception 'Un rendez-vous doit avoir un "title".'; end if;
@@ -449,7 +397,6 @@ begin
       where id = v_id;
     end if;
 
-  -- ---------------------------------------------------------------- invoice
   elsif v_type in ('invoice', 'factura', 'facture') then
     v_number := public._mk_text(p_data, 'number');
     if public._mk_num(p_data, 'amount') is null and v_ext is null and v_number is null then
@@ -508,7 +455,6 @@ begin
     raise exception 'p_type inconnu : "%". Valeurs possibles : contact, company, opportunity, appointment, invoice.', p_type;
   end if;
 
-  -- Journal (visible dans la page Automatisations)
   insert into public.automation_runs (organization_id, rule_id, event_key, status, details)
   values (v_org, null, 'make:' || gen_random_uuid(), 'success',
           jsonb_build_object('source', 'make', 'type', v_type, 'action', v_action, 'id', v_id));
@@ -519,9 +465,6 @@ end $$;
 revoke all on function public.make_ingest(text, text, jsonb) from public;
 grant execute on function public.make_ingest(text, text, jsonb) to anon, authenticated;
 
--- ---------------------------------------------------------------------
--- 6. Temps réel
--- ---------------------------------------------------------------------
 do $$
 declare t text;
 begin

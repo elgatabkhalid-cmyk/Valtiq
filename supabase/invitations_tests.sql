@@ -1,4 +1,4 @@
--- Tests des invitations — à lancer APRÈS migration_v0_3_invitations.sql, sur un projet de test.
+-- Tests des invitations — à lancer APRÈS les migrations de supabase/migrations/ (dont 20261115145329_invitations_v0_3_1.sql), sur un projet de test.
 -- Tout est annulé à la fin (ROLLBACK). Succès = « TOUS LES TESTS INVITATIONS SONT PASSÉS ».
 -- STATUT : écrit mais NON exécuté.
 begin;

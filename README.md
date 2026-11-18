@@ -6,9 +6,9 @@ Application React + TypeScript + Vite, reliée à Supabase (authentification et 
 1. `npm install`
 2. Copier `.env.example` en `.env` et renseigner `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`
    (clé « publishable » uniquement — jamais la clé secrète).
-3. Dans Supabase (SQL Editor) : exécuter `supabase/schema_v0_2.sql`, puis `supabase/rls_tests.sql`.
-   Pour les invitations d'équipe : exécuter ensuite `supabase/migration_v0_3_invitations.sql`
-   puis `supabase/invitations_tests.sql`. Gardez « Confirm email » activé.
+3. Base de données : exécuter, dans l'ordre, les fichiers de `supabase/migrations/` (voir `supabase/MIGRATIONS.md`),
+   par exemple avec la CLI : `supabase link --project-ref <ref>` puis `supabase db push`.
+   Tests : `supabase/rls_tests.sql` et `supabase/invitations_tests.sql`. Gardez « Confirm email » activé.
 4. `npm run dev` puis ouvrir http://localhost:5173
 
 ## Ce qui fonctionne (v0.3)
@@ -28,8 +28,7 @@ Application React + TypeScript + Vite, reliée à Supabase (authentification et 
 
 ## Version 0.4.0 — Automatisations et RGPD
 
-**Base de données (déjà appliquée sur Supabase par migration)** : `supabase/migration_v0_4_automations.sql`
-(si vous recréez un projet : exécuter schema_v0_2, migration_v0_3_invitations, puis migration_v0_4_automations).
+**Base de données (déjà appliquée sur Supabase par migration)** : `supabase/migrations/20261115152556_automations_v0_4.sql`.
 - 3 automatisations : tâche de relance à la création d'un contact, journal d'activité au changement d'étape, alerte quotidienne (6h UTC) sur les opportunités sans mouvement depuis 14 jours.
 - Activables/désactivables dans la page « Automatisations » (propriétaire/administrateur) ; journal des exécutions.
 
@@ -45,8 +44,8 @@ Application React + TypeScript + Vite, reliée à Supabase (authentification et 
 
 ## Version 0.5.0 — Agenda, factures et intégration Make
 
-**Base de données (déjà appliquée sur Supabase)** : `supabase/migration_v0_5_make_integration.sql`
-(si vous recréez un projet : l'exécuter après migration_v0_4_automations).
+**Base de données (déjà appliquée sur Supabase)** : `supabase/migrations/20261115210144_v0_5_make_integration.sql`
+et `20261115210222_v0_5_1_mk_num_european_format.sql`.
 - **Agenda** : rendez-vous par semaine, rendez-vous urgents mis en avant (badge dans le menu + alerte sur la vue d'ensemble).
 - **Factures** : à payer / en retard / payées, total à encaisser, encaissé du mois.
 - **Temps réel** : les données ajoutées par Make ou par un collègue apparaissent sans recharger la page.
