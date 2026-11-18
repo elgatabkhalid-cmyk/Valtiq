@@ -1,18 +1,3 @@
--- =====================================================================
--- VALTIQ — migration v0.4 : moteur d'automatisation côté base de données
--- À exécuter UNE SEULE FOIS (après migration_v0_3_invitations.sql).
---
--- Règles fournies (table automation_rules, activables par owner/admin) :
---  NEW_CONTACT_TASK  : à la création d'un contact, crée une tâche « Premier contact »
---  STAGE_CHANGE_LOG  : trace chaque changement d'étape d'une opportunité (activité)
---  STALE_DEAL_ALERT  : chaque jour, crée une tâche de relance pour les opportunités
---                      ouvertes sans mise à jour depuis N jours (une seule fois par période d'inactivité)
--- Chaque exécution est journalisée dans automation_runs (clé d'idempotence event_key).
--- Une règle qui échoue ne bloque jamais l'action de l'utilisateur : l'erreur est journalisée.
--- ATTENTION : cette migration ACTIVE les règles pour les organisations existantes.
--- =====================================================================
-
--- 1. Règles par défaut (organisations existantes)
 insert into public.automation_rules (organization_id, code, name, enabled, config)
 select o.id, r.code, r.name, true, r.config
 from public.organizations o
@@ -24,7 +9,6 @@ cross join (values
 on conflict (organization_id, code)
 do update set name = excluded.name, config = excluded.config, enabled = true;
 
--- 2. Règles par défaut (nouvelles organisations)
 create or replace function public.create_organization(org_name text)
 returns uuid language plpgsql security definer set search_path = public
 as $$
@@ -56,7 +40,6 @@ end $$;
 revoke all on function public.create_organization(text) from public, anon;
 grant execute on function public.create_organization(text) to authenticated;
 
--- 3. NEW_CONTACT_TASK
 create or replace function public.automation_new_contact()
 returns trigger language plpgsql security definer set search_path = public
 as $$
@@ -97,7 +80,6 @@ create trigger contacts_automation
   after insert on public.contacts
   for each row execute function public.automation_new_contact();
 
--- 4. STAGE_CHANGE_LOG
 create or replace function public.automation_stage_change()
 returns trigger language plpgsql security definer set search_path = public
 as $$
@@ -137,7 +119,6 @@ create trigger opportunities_stage_automation
   after update of stage_id on public.opportunities
   for each row execute function public.automation_stage_change();
 
--- 5. STALE_DEAL_ALERT (planifiée chaque jour)
 create or replace function public.run_stale_deal_alerts()
 returns integer language plpgsql security definer set search_path = public
 as $$
@@ -180,14 +161,6 @@ begin
   return v_count;
 end $$;
 
--- 6. Ces fonctions ne sont pas appelables par les utilisateurs
 revoke all on function public.automation_new_contact()   from public, anon, authenticated;
 revoke all on function public.automation_stage_change()  from public, anon, authenticated;
 revoke all on function public.run_stale_deal_alerts()    from public, anon, authenticated;
-
--- 7. Planification quotidienne (06:00 UTC = 07:00 ou 08:00 à Paris selon la saison)
--- Nécessite l'extension pg_cron (incluse dans Supabase). Relancer cette commande est sans danger.
-create extension if not exists pg_cron with schema pg_catalog;
-select cron.schedule('valtiq-stale-deal-alerts', '0 6 * * *', $$select public.run_stale_deal_alerts()$$);
-
--- STATUT : appliquée et testée le 15/11/2026 sur le projet Valtiq (9 scénarios, annulés par rollback).

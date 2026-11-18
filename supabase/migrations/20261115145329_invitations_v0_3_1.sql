@@ -1,20 +1,3 @@
--- =====================================================================
--- VALTIQ — migration v0.3.1 : invitations d'équipe
--- À exécuter UNE SEULE FOIS dans le SQL Editor Supabase, sur un projet où
--- schema_v0_2.sql est déjà installé. Ne supprime aucune donnée.
---
--- Principe : un owner/admin enregistre l'email d'un collègue. Dès que cette
--- personne se connecte avec ce même email (adresse CONFIRMÉE), l'application
--- appelle accept_invitations() et la rattache à l'organisation.
--- Aucun email n'est envoyé : c'est à vous de lui donner l'adresse de l'app.
---
--- SÉCURITÉ : gardez « Confirm email » ACTIVÉ dans Supabase (Authentication >
--- Providers > Email). Sinon, quelqu'un qui connaît l'email invité pourrait
--- créer un compte avec cette adresse et rejoindre l'organisation.
---
--- STATUT : appliquée et testée le 15/11/2026 sur le projet Valtiq (tests invitations_tests.sql réussis).
--- =====================================================================
-
 create table public.invitations (
   id uuid primary key default gen_random_uuid(),
   organization_id uuid not null references public.organizations(id) on delete cascade,
@@ -26,7 +9,6 @@ create table public.invitations (
 );
 create index on public.invitations (email);
 
--- Normalise l'email et refuse d'inviter quelqu'un qui est déjà membre
 create or replace function public.invitations_before_insert()
 returns trigger language plpgsql security definer set search_path = public
 as $$
@@ -62,8 +44,6 @@ create policy "owners/admins delete invitations" on public.invitations
   for delete to authenticated
   using (public.has_org_role(organization_id, array['owner','admin']::public.member_role[]));
 
--- Rattache l'utilisateur connecté aux organisations qui l'ont invité.
--- Ne fait rien si son email n'est pas confirmé. Renvoie le nombre d'organisations rejointes.
 create or replace function public.accept_invitations()
 returns integer language plpgsql security definer set search_path = public
 as $$
@@ -98,8 +78,3 @@ end $$;
 revoke all on function public.accept_invitations() from public, anon;
 grant execute on function public.accept_invitations() to authenticated;
 revoke all on function public.invitations_before_insert() from public, anon;
-
--- Les fonctions de déclencheur n'ont pas à être appelables par les utilisateurs
-revoke execute on function public.handle_new_user()           from public, anon, authenticated;
-revoke execute on function public.protect_last_owner()        from public, anon, authenticated;
-revoke execute on function public.invitations_before_insert() from public, anon, authenticated;
