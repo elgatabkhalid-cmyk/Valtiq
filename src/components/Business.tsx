@@ -175,7 +175,7 @@ export function Invoices({ invoices, clientName, onStatus, onAdd, onEdit, onDele
         </div>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>{t("N°")}</th><th>{t("CLIENT")}</th><th>{t("ÉMISE")}</th><th>{t("ÉCHÉANCE")}</th><th>{t("MONTANT")}</th><th>{t("STATUT")}</th><th></th><th></th></tr></thead>
+            <thead><tr><th>{t("N°")}</th><th>{t("CLIENT")}</th><th>{t("ÉMISE")}</th><th>{t("ÉCHÉANCE")}</th><th className="amount">{t("MONTANT")}</th><th>{t("STATUT")}</th><th></th><th></th></tr></thead>
             <tbody>
               {rows.map(i => (
                 <tr key={i.id}>
@@ -183,7 +183,7 @@ export function Invoices({ invoices, clientName, onStatus, onAdd, onEdit, onDele
                   <td>{clientName(i) || "—"}</td>
                   <td>{dmy(i.issued_at)}</td>
                   <td className={isOverdue(i) ? "overdue-date" : ""}>{dmy(i.due_at)}</td>
-                  <td><b>{money(i.amount, i.currency)}</b></td>
+                  <td className="amount"><b>{money(i.amount, i.currency)}</b></td>
                   <td>
                     {i.status === "paid"
                       ? <span className="status qualified">{i.paid_at ? t("Payée le {date}", { date: dmy(i.paid_at) }) : t("Payée")}</span>
@@ -200,7 +200,7 @@ export function Invoices({ invoices, clientName, onStatus, onAdd, onEdit, onDele
             </tbody>
           </table>
         </div>
-        {rows.length === 0 && <div className="empty">{t("Aucune facture dans cette catégorie.")}</div>}
+        {rows.length === 0 && <div className="empty"><Receipt size={24} aria-hidden="true" />{t("Aucune facture dans cette catégorie.")}</div>}
       </section>
     </>
   );

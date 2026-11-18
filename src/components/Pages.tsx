@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import {
   Activity, ArrowDownRight, ArrowUpRight, Bot, Building2, CalendarClock, Check, CircleHelp,
-  Clock3, Pencil, Plus, Settings, Sparkles, Target, Trash2, Users
+  Clock3, Inbox, Pencil, Plus, Settings, Sparkles, Target, Trash2, Users
 } from "lucide-react";
 import type {
   ActivityRow as ActivityData, AutomationRule as AutomationRuleData, AutomationRun as AutomationRunData, DealRow, Invitation, LeadRow, LeadStatus, Member, OrgInfo, Stage, TaskStatus, TaskView
@@ -92,7 +92,7 @@ export function Dashboard({ firstName, leadCount, deals, stages, tasks, overdue,
                 </div>
               );
             })}
-            {openStages.length === 0 && <div className="empty">{t("Aucune étape de pipeline.")}</div>}
+            {openStages.length === 0 && <div className="empty"><Inbox size={24} aria-hidden="true" />{t("Aucune étape de pipeline.")}</div>}
           </div>
           <div className="panel-foot"><span>{t("Valeur totale du pipeline")}</span><b>{money(pipelineValue)}</b></div>
         </section>
@@ -108,7 +108,7 @@ export function Dashboard({ firstName, leadCount, deals, stages, tasks, overdue,
               <span className={`priority ${tk.priority}`}>{t(PRIORITY_LABELS[tk.priority])}</span>
             </div>
           ))}
-          {openTasks.length === 0 && <div className="empty">{t("Aucune tâche ouverte.")}</div>}
+          {openTasks.length === 0 && <div className="empty"><Inbox size={24} aria-hidden="true" />{t("Aucune tâche ouverte.")}</div>}
         </section>
       </div>
       <section className="panel activity-panel">
@@ -121,7 +121,7 @@ export function Dashboard({ firstName, leadCount, deals, stages, tasks, overdue,
               <time>{new Date(a.created_at).toLocaleDateString(loc())}</time>
             </div>
           ))}
-          {activities.length === 0 && <div className="empty">{t("Aucune activité pour le moment.")}</div>}
+          {activities.length === 0 && <div className="empty"><Inbox size={24} aria-hidden="true" />{t("Aucune activité pour le moment.")}</div>}
         </div>
       </section>
     </>
@@ -179,7 +179,7 @@ export function Leads({ leads, total, onAdd, onStatus, onEdit, onDelete }: {
           </div>
         )}
         {shown.length === 0 && (
-          <div className="empty">{total === 0 ? t("Aucun prospect pour le moment. Ajoutez le premier avec le bouton ci-dessus.") : t("Aucun prospect ne correspond à votre recherche.")}</div>
+          <div className="empty"><Inbox size={24} aria-hidden="true" />{total === 0 ? t("Aucun prospect pour le moment. Ajoutez le premier avec le bouton ci-dessus.") : t("Aucun prospect ne correspond à votre recherche.")}</div>
         )}
       </section>
     </>
@@ -264,8 +264,8 @@ export function Tasks({ tasks, onToggle, onAdd, onEdit, onDelete }: {
             <RowActions name={tk.title} onEdit={() => onEdit(tk)} onDelete={onDelete && (() => onDelete(tk))} />
           </div>
         ))}
-        {tasks.length === 0 && <div className="empty">{t("Aucune tâche. Créez-en une avec le bouton ci-dessus.")}</div>}
-        {tasks.length > 0 && shown.length === 0 && <div className="empty">{t("Aucune tâche dans cette catégorie.")}</div>}
+        {tasks.length === 0 && <div className="empty"><Inbox size={24} aria-hidden="true" />{t("Aucune tâche. Créez-en une avec le bouton ci-dessus.")}</div>}
+        {tasks.length > 0 && shown.length === 0 && <div className="empty"><Inbox size={24} aria-hidden="true" />{t("Aucune tâche dans cette catégorie.")}</div>}
       </section>
     </>
   );
@@ -338,7 +338,7 @@ export function Automation({ rules, runs, canEdit, onToggle }: {
             </div>
           );
         })}
-        {rules.length === 0 && <div className="empty">{t("Aucune règle disponible pour cette organisation.")}</div>}
+        {rules.length === 0 && <div className="empty"><Inbox size={24} aria-hidden="true" />{t("Aucune règle disponible pour cette organisation.")}</div>}
       </div>
       <section className="panel table-panel" style={{ marginTop: 18 }}>
         <div className="panel-head"><div><h3>{t("Dernières exécutions")}</h3><p>{t("Journal des règles (12 dernières)")}</p></div></div>
@@ -356,7 +356,7 @@ export function Automation({ rules, runs, canEdit, onToggle }: {
             </tbody>
           </table>
         </div>
-        {runs.length === 0 && <div className="empty">{t("Aucune exécution pour le moment. Créez un prospect pour voir la première règle s'exécuter.")}</div>}
+        {runs.length === 0 && <div className="empty"><Inbox size={24} aria-hidden="true" />{t("Aucune exécution pour le moment. Créez un prospect pour voir la première règle s'exécuter.")}</div>}
       </section>
       <div className="callout"><CircleHelp size={18} /><p>{t("Les règles s'exécutent dans la base de données, même si l'application est fermée. Une règle qui échoue n'empêche jamais l'action de l'utilisateur : l'erreur est simplement inscrite dans ce journal.")}</p></div>
     </>
