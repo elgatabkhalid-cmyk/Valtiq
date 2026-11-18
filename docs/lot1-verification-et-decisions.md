@@ -67,9 +67,9 @@ vers le même projet Supabase.
 
 ---
 
-## L1-06 — Signature HMAC des appels de Make (D-04) — proposition, à valider avec Soufyane
+## L1-06 — Signature HMAC des appels de Make (D-04) — décidé le 18/11/2026
 
-**Proposition : pas de HMAC pour la démo et les pilotes ; le jeton haché suffit. On réexamine au bilan à 10 clients (L11-06).**
+**Décision (Khalid, responsable de D-04 dans la checklist) : pas de HMAC pour la démo et les pilotes ; le jeton haché suffit. On réexamine au bilan à 10 clients (L11-06).** Les 8 fonctions ont été durcies et testées (migration v0.8, voir `docs/securite.md`).
 
 Ce que le jeton apporte déjà (vérifié dans le code des 8 fonctions, voir L3-01) :
 
@@ -140,7 +140,7 @@ par client. À réexaminer au bilan à 10 clients (L11-06).
 
 ## Décisions à prendre ensemble (récapitulatif)
 
-- [ ] D-04 : jeton haché sans HMAC pour la démo et les pilotes
+- [x] D-04 : jeton haché sans HMAC pour la démo et les pilotes (décidé le 18/11/2026)
 - [ ] D-10 : un site Netlify par client
 - [ ] L1-07 : « Valtiq » = développement + démo ; projet central = tableau partagé au début
 - [ ] Passer le dépôt GitHub en privé lors du transfert vers l'organisation `valtiq`

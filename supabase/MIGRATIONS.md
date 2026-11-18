@@ -19,6 +19,7 @@ Ordre d'application sur le projet `znzdvhfczkhyubkjqvow`, tel qu'enregistré dan
 | 11 | 20261115232142 | v0_6_emails_04_referentiels_planification | `migration_v0_6_emails_04_referentiels_planification.sql` | Automatisation |
 | 12 | 20261116015106 | v0_7_emails_routage_metier | `migration_v0_7_emails_routage_metier.sql` | Automatisation |
 | 13 | 20261116020606 | v0_7_1_routage_garde_message_court | `migration_v0_7_1_routage_garde_message_court.sql` | Automatisation |
+| 14 | 20261118140016 | v0_8_securite_fonctions | `migration_v0_8_securite_fonctions.sql` | CRM |
 
 Les fichiers 6 à 13 sont une copie exacte (vérifiée par empreinte MD5) du SQL enregistré dans Supabase le 16/11/2026 :
 
