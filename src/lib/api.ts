@@ -45,50 +45,57 @@ export async function createOrganization(name: string): Promise<string> {
   return id as string;
 }
 
+/** Résultat d'une requête facultative : liste vide si la table n'existe pas ou si l'accès est refusé. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function orEmpty(res: { data: any; error: unknown }): any[] {
+  return res.error ? [] : (res.data ?? []);
+}
+
 export async function loadWorkspace(orgId: string): Promise<Workspace> {
   const c = db();
-  const [companies, contacts, stages, opps, tasks, acts, members] = await Promise.all([
+  const since = new Date(); since.setDate(since.getDate() - 120);
+  const EMAIL_COLS = "id, organization_id, boite_mail_id, contact_id, expediteur_normalise, expediteur_nom, objet, extrait, recu_le, "
+    + "type_message_id, confiance, niveau_confiance, resume, action_recommandee, points_a_verifier, nature_message, "
+    + "statut_traitement, nb_pieces_jointes, derniere_erreur, traite_le";
+  // Toutes les requêtes partent en même temps (auparavant : sept vagues de requêtes à la suite).
+  const [
+    companies, contacts, stages, opps, tasks, acts, members,
+    invitations, rules, runs, appts, invoices,
+    emails, types, cats, boxes
+  ] = await Promise.all([
+    // Données essentielles : une erreur bloque le chargement
     c.from("companies").select("*").eq("organization_id", orgId).order("name"),
     c.from("contacts").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }),
     c.from("pipeline_stages").select("*").eq("organization_id", orgId).order("position"),
     c.from("opportunities").select("*").eq("organization_id", orgId).order("updated_at", { ascending: false }),
     c.from("tasks").select("*").eq("organization_id", orgId).order("due_at", { ascending: true, nullsFirst: false }),
     c.from("activities").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(8),
-    c.from("organization_members").select("user_id, role, profiles(full_name)").eq("organization_id", orgId)
-  ]);
-  // Les invitations n'existent qu'après la migration SQL v0.3 : on ignore l'erreur si la table est absente
-  const invRes = await c.from("invitations").select("*").eq("organization_id", orgId).order("created_at", { ascending: false });
-  const rulesRes = await c.from("automation_rules").select("*").eq("organization_id", orgId).order("code");
-  const runsRes = await c.from("automation_runs").select("*").eq("organization_id", orgId)
-    .order("created_at", { ascending: false }).limit(12);
-  // Rendez-vous et factures : tables ajoutées par la migration v0.5 (erreur ignorée si absentes)
-  const since = new Date(); since.setDate(since.getDate() - 120);
-  const apptRes = await c.from("appointments").select("*").eq("organization_id", orgId)
-    .gte("starts_at", since.toISOString()).order("starts_at").limit(2000);
-  const invRes2 = await c.from("invoices").select("*").eq("organization_id", orgId)
-    .order("due_at", { ascending: true, nullsFirst: false }).limit(2000);
-  // Module emails (migrations v0.6 / v0.7 de l'équipe Automatisation) : ignoré si absent
-  const EMAIL_COLS = "id, organization_id, boite_mail_id, contact_id, expediteur_normalise, expediteur_nom, objet, extrait, recu_le, "
-    + "type_message_id, confiance, niveau_confiance, resume, action_recommandee, points_a_verifier, nature_message, "
-    + "statut_traitement, nb_pieces_jointes, derniere_erreur, traite_le";
-  const [emailsRes, typesRes, catsRes, boxesRes] = await Promise.all([
+    c.from("organization_members").select("user_id, role, profiles(full_name)").eq("organization_id", orgId),
+    // Modules facultatifs : liste vide en cas d'erreur (droits insuffisants, module absent)
+    c.from("invitations").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }),
+    c.from("automation_rules").select("*").eq("organization_id", orgId).order("code"),
+    c.from("automation_runs").select("*").eq("organization_id", orgId).order("created_at", { ascending: false }).limit(12),
+    c.from("appointments").select("*").eq("organization_id", orgId)
+      .gte("starts_at", since.toISOString()).order("starts_at").limit(2000),
+    c.from("invoices").select("*").eq("organization_id", orgId)
+      .order("due_at", { ascending: true, nullsFirst: false }).limit(2000),
     c.from("emails").select(EMAIL_COLS).eq("organization_id", orgId).order("recu_le", { ascending: false }).limit(300),
     c.from("types_messages").select("id, code, libelle, position").eq("actif", true).order("position"),
     c.from("categories_contacts").select("id, code, libelle, position").eq("actif", true).order("position"),
     c.from("boites_mail").select("id, adresse_email, libelle").eq("organization_id", orgId)
   ]);
   return {
-    emails: ((emailsRes.error ? [] : (emailsRes.data ?? [])) as any[]).map((e: any) => ({
+    emails: orEmpty(emails).map((e: any) => ({
       ...e, confiance: e.confiance === null ? null : Number(e.confiance), points_a_verifier: e.points_a_verifier ?? []
     })) as EmailRow[],
-    messageTypes: (typesRes.error ? [] : (typesRes.data ?? [])) as MessageType[],
-    categories: (catsRes.error ? [] : (catsRes.data ?? [])) as ContactCategory[],
-    mailboxes: (boxesRes.error ? [] : (boxesRes.data ?? [])) as Mailbox[],
-    appointments: (apptRes.error ? [] : (apptRes.data ?? [])) as Appointment[],
-    invoices: ((invRes2.error ? [] : (invRes2.data ?? [])) as any[]).map((i: any) => ({ ...i, amount: Number(i.amount) })) as Invoice[],
-    rules: (rulesRes.error ? [] : (rulesRes.data ?? [])) as AutomationRule[],
-    runs: (runsRes.error ? [] : (runsRes.data ?? [])) as AutomationRun[],
-    invitations: (invRes.error ? [] : (invRes.data ?? [])) as Invitation[],
+    messageTypes: orEmpty(types) as MessageType[],
+    categories: orEmpty(cats) as ContactCategory[],
+    mailboxes: orEmpty(boxes) as Mailbox[],
+    appointments: orEmpty(appts) as Appointment[],
+    invoices: orEmpty(invoices).map((i: any) => ({ ...i, amount: Number(i.amount) })) as Invoice[],
+    rules: orEmpty(rules) as AutomationRule[],
+    runs: orEmpty(runs) as AutomationRun[],
+    invitations: orEmpty(invitations) as Invitation[],
     companies: (unwrap(companies) ?? []) as Company[],
     contacts: (unwrap(contacts) ?? []) as Contact[],
     stages: (unwrap(stages) ?? []) as Stage[],

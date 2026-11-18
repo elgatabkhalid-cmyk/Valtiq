@@ -5,6 +5,7 @@ import {
 import type { Appointment, AppointmentStatus, IntegrationInfo, Invoice, InvoiceStatus } from "../types";
 import { Kpi, PageHeading } from "./Pages";
 import { loc, t } from "../i18n";
+import { isoDay, money } from "../lib/format";
 
 // ---------------------------------------------------------------------------
 // Utilitaires de dates (heure locale)
@@ -15,14 +16,6 @@ function startOfWeek(d: Date) { const x = startOfDay(d); const wd = (x.getDay() 
 function sameDay(a: Date, b: Date) { return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate(); }
 const hm = (iso: string) => new Date(iso).toLocaleTimeString(loc(), { hour: "2-digit", minute: "2-digit" });
 const dmy = (iso: string | null) => (iso ? new Date(iso.length === 10 ? iso + "T12:00:00" : iso).toLocaleDateString(loc()) : "—");
-export function isoDay(d: Date) {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-function fmtMoney(n: number, currency = "EUR") {
-  try { return new Intl.NumberFormat(loc(), { style: "currency", currency, maximumFractionDigits: 2 }).format(n); }
-  catch { return `${n.toFixed(2)} ${currency}`; }
-}
 
 // ---------------------------------------------------------------------------
 // Agenda
@@ -162,9 +155,9 @@ export function Invoices({ invoices, clientName, onStatus, onAdd }: {
       <PageHeading eyebrow="FINANCES" title="Factures" desc="Suivez ce qui a été encaissé et ce qui reste à payer."
         action={<button type="button" className="primary" onClick={onAdd}><Plus size={16} /> {t("Nouvelle facture")}</button>} />
       <div className="kpi-grid kpi-3">
-        <Kpi label="À encaisser" value={fmtMoney(sum(unpaid))} change={t("{n} facture(s) à payer", { n: unpaid.length })} icon={<Wallet />} />
-        <Kpi label="En retard" value={fmtMoney(sum(overdue))} change={overdue.length ? t("{n} échéance(s) dépassée(s)", { n: overdue.length }) : t("Aucun retard")} icon={<AlertTriangle />} alert={overdue.length > 0} />
-        <Kpi label="Encaissé ce mois-ci" value={fmtMoney(sum(paidThisMonth))} change={t("{n} facture(s) payée(s) au total", { n: paid.length })} icon={<Receipt />} />
+        <Kpi label="À encaisser" value={money(sum(unpaid))} change={t("{n} facture(s) à payer", { n: unpaid.length })} icon={<Wallet />} />
+        <Kpi label="En retard" value={money(sum(overdue))} change={overdue.length ? t("{n} échéance(s) dépassée(s)", { n: overdue.length }) : t("Aucun retard")} icon={<AlertTriangle />} alert={overdue.length > 0} />
+        <Kpi label="Encaissé ce mois-ci" value={money(sum(paidThisMonth))} change={t("{n} facture(s) payée(s) au total", { n: paid.length })} icon={<Receipt />} />
       </div>
       <section className="panel table-panel">
         <div className="tabs" role="tablist">
@@ -185,7 +178,7 @@ export function Invoices({ invoices, clientName, onStatus, onAdd }: {
                   <td>{clientName(i) || "—"}</td>
                   <td>{dmy(i.issued_at)}</td>
                   <td className={isOverdue(i) ? "overdue-date" : ""}>{dmy(i.due_at)}</td>
-                  <td><b>{fmtMoney(i.amount, i.currency)}</b></td>
+                  <td><b>{money(i.amount, i.currency)}</b></td>
                   <td>
                     {i.status === "paid"
                       ? <span className="status qualified">{i.paid_at ? t("Payée le {date}", { date: dmy(i.paid_at) }) : t("Payée")}</span>

@@ -11,6 +11,7 @@ import {
 } from "./lib/api";
 import { emptyWorkspace } from "./types";
 import { loc, t, tv, useLang } from "./i18n";
+import { money } from "./lib/format";
 import { LangSwitch } from "./components/LangSwitch";
 import type {
   AppointmentStatus, EmailStatus, DealRow, IntegrationInfo, Invoice, InvoiceStatus, LeadRow, LeadStatus, OrgInfo, TaskStatus, TaskView, Workspace
@@ -61,8 +62,12 @@ export default function App() {
   // Langue mémorisée dans le compte : les emails (confirmation, mot de passe…) partent dans cette langue
   const lang = useLang();
   const savedLang = session?.user?.user_metadata?.lang as string | undefined;
+  const langSaveTried = useRef<string | null>(null); // une seule tentative par utilisateur et par langue
   useEffect(() => {
     if (!supabase || !session || savedLang === lang) return;
+    const attempt = `${session.user.id}:${lang}`;
+    if (langSaveTried.current === attempt) return;
+    langSaveTried.current = attempt;
     void supabase.auth.updateUser({ data: { lang } }).catch(() => undefined);
   }, [lang, savedLang, session]);
 
@@ -367,7 +372,7 @@ export default function App() {
                 <button type="button" className="alert-card" onClick={() => setPage("invoices")}>
                   <Receipt size={16} />
                   <span><b>{t("{n} facture(s) en retard", { n: overdueInvoices.length })}</b>
-                    <small>{t("{amount} à relancer", { amount: new Intl.NumberFormat(loc(), { style: "currency", currency: "EUR" }).format(overdueInvoices.reduce((s, i) => s + i.amount, 0)) })}</small></span>
+                    <small>{t("{amount} à relancer", { amount: money(overdueInvoices.reduce((s, i) => s + i.amount, 0)) })}</small></span>
                 </button>
               )}
             </div>
