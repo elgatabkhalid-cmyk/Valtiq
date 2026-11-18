@@ -151,3 +151,7 @@ button:disabled{opacity:.6;cursor:not-allowed}
 /* ===== mot de passe oublié ===== */
 .auth-card .forgot-link{justify-self:end;margin:-6px 0 4px;font-size:12px;color:var(--muted)}
 .auth-card .forgot-link:hover{color:#e3e6e9}
+.row-actions{display:inline-flex;gap:2px;align-items:center;margin-left:auto}.row-actions .icon-btn.small{padding:5px;margin:0;border-radius:6px;color:var(--muted)}.row-actions .icon-btn.small:hover,.row-actions .icon-btn.small:focus-visible{background:#1d2126;color:var(--accent)}.row-actions .icon-btn.danger:hover,.row-actions .icon-btn.danger:focus-visible{color:var(--red)}.deal-top{display:flex;align-items:center;justify-content:space-between;gap:6px}.task-line .row-actions{margin-left:0}
+.crash{min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--bg);color:var(--accent)}.crash-box{max-width:440px;text-align:center;border:1px solid var(--line);background:var(--panel);border-radius:12px;padding:32px 24px}.crash-box h1{font-size:20px;margin:0 0 10px}.crash-box p{color:var(--muted);line-height:1.6;margin:0 0 20px}
+.filter-select{background:#16191c;border:1px solid var(--line);color:var(--silver);border-radius:7px;padding:6px 9px;font-size:12px}.more-row{display:flex;justify-content:center;padding:14px 0 4px}
+.row-actions .icon-btn.small.danger{background:transparent;border:0;color:var(--muted)}.row-actions .icon-btn.small.danger:hover,.row-actions .icon-btn.small.danger:focus-visible{background:#2a1a1c;color:var(--red)}

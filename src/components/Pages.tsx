@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import {
   Activity, ArrowDownRight, ArrowUpRight, Bot, Building2, CalendarClock, Check, CircleHelp,
-  Clock3, Plus, Settings, Sparkles, Target, Users
+  Clock3, Pencil, Plus, Settings, Sparkles, Target, Trash2, Users
 } from "lucide-react";
 import type {
   ActivityRow as ActivityData, AutomationRule as AutomationRuleData, AutomationRun as AutomationRunData, DealRow, Invitation, LeadRow, LeadStatus, Member, OrgInfo, Stage, TaskStatus, TaskView
@@ -22,6 +22,16 @@ const STATUS_LABELS: Record<LeadStatus, string> = {
 const PRIORITY_LABELS = { high: "Haute", normal: "Normale", low: "Basse" } as const;
 const ROLE_LABELS = { owner: "Propriétaire", admin: "Administrateur", sales: "Commercial" } as const;
 const CLOSED_STAGES = ["Gagné", "Perdu"];
+
+/** Boutons « Modifier » et « Supprimer » d'une ligne. Sans `onDelete` (droits insuffisants), seul « Modifier » s'affiche. */
+export function RowActions({ name, onEdit, onDelete }: { name: string; onEdit: () => void; onDelete?: () => void }) {
+  return (
+    <span className="row-actions">
+      <button type="button" className="icon-btn small" title={t("Modifier")} aria-label={t("Modifier « {name} »", { name })} onClick={onEdit}><Pencil size={14} /></button>
+      {onDelete && <button type="button" className="icon-btn small danger" title={t("Supprimer")} aria-label={t("Supprimer « {name} »", { name })} onClick={onDelete}><Trash2 size={14} /></button>}
+    </span>
+  );
+}
 
 export function PageHeading({ eyebrow, title, desc, action }: { eyebrow: string; title: string; desc: string; action?: ReactNode }) {
   return (
@@ -118,22 +128,34 @@ export function Dashboard({ firstName, leadCount, deals, stages, tasks, overdue,
   );
 }
 
-export function Leads({ leads, total, onAdd, onStatus, canDelete, onDelete }: {
+export function Leads({ leads, total, onAdd, onStatus, onEdit, onDelete }: {
   leads: LeadRow[]; total: number; onAdd: () => void; onStatus: (id: string, s: LeadStatus) => void;
-  canDelete: boolean; onDelete: (l: LeadRow) => void;
+  onEdit: (l: LeadRow) => void; onDelete?: (l: LeadRow) => void;
 }) {
+  const PAGE_SIZE = 50;
+  const [status, setStatus] = useState<LeadStatus | "all">("all");
+  const [limit, setLimit] = useState(PAGE_SIZE);
+  const shown = status === "all" ? leads : leads.filter(l => l.status === status);
+  const visible = shown.slice(0, limit);
   return (
     <>
       <PageHeading eyebrow="GESTION DE LA RELATION CLIENT" title="Prospects & clients"
         desc="Centralisez vos contacts et ne laissez plus aucune opportunité vous échapper."
         action={<button type="button" className="primary" onClick={onAdd}><Plus size={16} /> {t("Ajouter un prospect")}</button>} />
       <section className="panel table-panel">
-        <div className="panel-head"><div><h3>{t("Votre portefeuille")}</h3><p>{t("{n} contact(s) affiché(s) sur {total}", { n: leads.length, total })}</p></div></div>
+        <div className="panel-head">
+          <div><h3>{t("Votre portefeuille")}</h3><p>{t("{n} contact(s) affiché(s) sur {total}", { n: shown.length, total })}</p></div>
+          <select className="filter-select" aria-label={t("Filtrer par statut")} value={status}
+            onChange={e => { setStatus(e.target.value as LeadStatus | "all"); setLimit(PAGE_SIZE); }}>
+            <option value="all">{t("Tous les statuts")}</option>
+            {(Object.keys(STATUS_LABELS) as LeadStatus[]).map(st => <option key={st} value={st}>{t(STATUS_LABELS[st])}</option>)}
+          </select>
+        </div>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>{t("CONTACT")}</th><th>{t("ENTREPRISE")}</th><th>{t("EMAIL")}</th><th>{t("SOURCE")}</th><th>{t("STATUT")}</th><th>{t("RESPONSABLE")}</th>{canDelete && <th></th>}</tr></thead>
+            <thead><tr><th>{t("CONTACT")}</th><th>{t("ENTREPRISE")}</th><th>{t("EMAIL")}</th><th>{t("SOURCE")}</th><th>{t("STATUT")}</th><th>{t("RESPONSABLE")}</th><th></th></tr></thead>
             <tbody>
-              {leads.map(l => (
+              {visible.map(l => (
                 <tr key={l.id}>
                   <td><b>{l.name}</b></td><td>{l.company || "—"}</td><td>{l.email || "—"}</td><td>{tv(l.source)}</td>
                   <td>
@@ -143,13 +165,20 @@ export function Leads({ leads, total, onAdd, onStatus, canDelete, onDelete }: {
                     </select>
                   </td>
                   <td>{tv(l.owner)}</td>
-                  {canDelete && <td><button type="button" className="row-btn" onClick={() => onDelete(l)}>{t("Supprimer")}</button></td>}
+                  <td><RowActions name={l.name} onEdit={() => onEdit(l)} onDelete={onDelete && (() => onDelete(l))} /></td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-        {leads.length === 0 && (
+        {shown.length > visible.length && (
+          <div className="more-row">
+            <button type="button" className="secondary" onClick={() => setLimit(limit + PAGE_SIZE)}>
+              {t("Afficher {n} de plus", { n: Math.min(PAGE_SIZE, shown.length - visible.length) })}
+            </button>
+          </div>
+        )}
+        {shown.length === 0 && (
           <div className="empty">{total === 0 ? t("Aucun prospect pour le moment. Ajoutez le premier avec le bouton ci-dessus.") : t("Aucun prospect ne correspond à votre recherche.")}</div>
         )}
       </section>
@@ -157,8 +186,9 @@ export function Leads({ leads, total, onAdd, onStatus, canDelete, onDelete }: {
   );
 }
 
-export function Pipeline({ deals, stages, onMove, onAdd }: {
+export function Pipeline({ deals, stages, onMove, onAdd, onEdit, onDelete }: {
   deals: DealRow[]; stages: Stage[]; onMove: (id: string, stageId: string) => void; onAdd: () => void;
+  onEdit: (d: DealRow) => void; onDelete?: (d: DealRow) => void;
 }) {
   return (
     <>
@@ -172,7 +202,9 @@ export function Pipeline({ deals, stages, onMove, onAdd }: {
               <div className="kanban-head"><b>{tv(s.name)}</b><span>{col.length}</span></div>
               {col.map(d => (
                 <div className="deal-card" key={d.id}>
-                  <small>{d.company || t("Sans entreprise")}</small><b>{d.title}</b><strong>{money(d.amount)}</strong>
+                  <div className="deal-top"><small>{d.company || t("Sans entreprise")}</small>
+                    <RowActions name={d.title} onEdit={() => onEdit(d)} onDelete={onDelete && (() => onDelete(d))} /></div>
+                  <b>{d.title}</b><strong>{money(d.amount)}</strong>
                   <div className="deal-foot">
                     <span>{tv(d.owner)}</span>
                     <select value={s.id} onChange={e => onMove(d.id, e.target.value)} aria-label={t("Changer l'étape de {title}", { title: d.title })}>
@@ -189,14 +221,34 @@ export function Pipeline({ deals, stages, onMove, onAdd }: {
   );
 }
 
-export function Tasks({ tasks, onToggle, onAdd }: { tasks: TaskView[]; onToggle: (id: string, s: TaskStatus) => void; onAdd: () => void }) {
+export function Tasks({ tasks, onToggle, onAdd, onEdit, onDelete }: {
+  tasks: TaskView[]; onToggle: (id: string, s: TaskStatus) => void; onAdd: () => void;
+  onEdit: (tk: TaskView) => void; onDelete?: (tk: TaskView) => void;
+}) {
+  const [filter, setFilter] = useState<"open" | "done" | "all">("open");
+  const open = tasks.filter(x => x.status !== "done");
+  const done = tasks.filter(x => x.status === "done");
+  const shown = filter === "open" ? open : filter === "done" ? done : tasks;
+  const tabs = [
+    { id: "open" as const, label: "À faire", n: open.length },
+    { id: "done" as const, label: "Terminées", n: done.length },
+    { id: "all" as const, label: "Toutes", n: tasks.length }
+  ];
   return (
     <>
       <PageHeading eyebrow="ORGANISATION COMMERCIALE" title="Tâches & relances" desc="Priorisez vos actions et gardez le contrôle de vos suivis."
         action={<button type="button" className="primary" onClick={onAdd}><Plus size={16} /> {t("Nouvelle tâche")}</button>} />
       <section className="panel task-list-panel">
-        <div className="panel-head"><div><h3>{t("Liste des actions")}</h3><p>{t("{n} tâche(s) ouverte(s)", { n: tasks.filter(x => x.status !== "done").length })}</p></div></div>
-        {tasks.map(tk => (
+        <div className="panel-head"><div><h3>{t("Liste des actions")}</h3><p>{t("{n} tâche(s) ouverte(s)", { n: open.length })}</p></div></div>
+        <div className="tabs" role="tablist">
+          {tabs.map(tb => (
+            <button type="button" role="tab" aria-selected={filter === tb.id} key={tb.id}
+              className={`tab ${filter === tb.id ? "active" : ""}`} onClick={() => setFilter(tb.id)}>
+              {t(tb.label)} <span>{tb.n}</span>
+            </button>
+          ))}
+        </div>
+        {shown.map(tk => (
           <div className="task-line" key={tk.id}>
             <button type="button" className={`task-check ${tk.status === "done" ? "checked" : ""}`}
               aria-label={tk.status === "done" ? t("Rouvrir la tâche") : t("Marquer comme terminée")}
@@ -209,9 +261,11 @@ export function Tasks({ tasks, onToggle, onAdd }: { tasks: TaskView[]; onToggle:
             </div>
             <span className={`priority ${tk.priority}`}>{t(PRIORITY_LABELS[tk.priority])}</span>
             <time className={tk.overdue ? "overdue-date" : ""}>{tk.due ?? t("Sans échéance")}</time>
+            <RowActions name={tk.title} onEdit={() => onEdit(tk)} onDelete={onDelete && (() => onDelete(tk))} />
           </div>
         ))}
         {tasks.length === 0 && <div className="empty">{t("Aucune tâche. Créez-en une avec le bouton ci-dessus.")}</div>}
+        {tasks.length > 0 && shown.length === 0 && <div className="empty">{t("Aucune tâche dans cette catégorie.")}</div>}
       </section>
     </>
   );
