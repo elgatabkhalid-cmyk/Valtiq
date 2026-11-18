@@ -9,17 +9,18 @@ import type {
 } from "../types";
 import { loc, t, tv } from "../i18n";
 import { LangSwitch } from "./LangSwitch";
+import { money as formatMoney } from "../lib/format";
 
 export type Page = "dashboard" | "inbox" | "leads" | "pipeline" | "tasks" | "agenda" | "invoices" | "automation" | "assistant" | "settings";
 
-export const money = (n: number) =>
-  new Intl.NumberFormat(loc(), { style: "currency", currency: "EUR", maximumFractionDigits: 0 }).format(n);
+/** Totaux du tableau de bord : arrondis à l'euro. */
+const money = (n: number) => formatMoney(n, "EUR", 0);
 
 const STATUS_LABELS: Record<LeadStatus, string> = {
   new: "Nouveau", contacted: "Contacté", qualified: "Qualifié", customer: "Client", lost: "Perdu"
 };
 const PRIORITY_LABELS = { high: "Haute", normal: "Normale", low: "Basse" } as const;
-export const ROLE_LABELS = { owner: "Propriétaire", admin: "Administrateur", sales: "Commercial" } as const;
+const ROLE_LABELS = { owner: "Propriétaire", admin: "Administrateur", sales: "Commercial" } as const;
 const CLOSED_STAGES = ["Gagné", "Perdu"];
 
 export function PageHeading({ eyebrow, title, desc, action }: { eyebrow: string; title: string; desc: string; action?: ReactNode }) {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { X } from "lucide-react";
 import { t, tv } from "../i18n";
+import { isoDay } from "../lib/format";
 import type { Company, Contact, InvoiceStatus, Stage, TaskPriority } from "../types";
 
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
@@ -161,17 +162,12 @@ export function TaskForm({ contacts, busy, onSubmit }: {
   );
 }
 
-function isoDate(d: Date) {
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-}
-
 export function AppointmentForm({ contacts, busy, defaultDate, onSubmit }: {
   contacts: Contact[]; busy: boolean; defaultDate?: string;
   onSubmit: Submit<{ title: string; date: string; start: string; end: string; location: string; notes: string; urgent: boolean; contactId: string | null }>;
 }) {
   const [title, setTitle] = useState("");
-  const [date, setDate] = useState(defaultDate ?? isoDate(new Date()));
+  const [date, setDate] = useState(defaultDate ?? isoDay(new Date()));
   const [start, setStart] = useState("09:00");
   const [end, setEnd] = useState("09:30");
   const [location, setLocation] = useState("");
@@ -221,8 +217,8 @@ export function InvoiceForm({ companies, busy, onSubmit }: {
   const [number, setNumber] = useState("");
   const [clientName, setClientName] = useState("");
   const [amount, setAmount] = useState("");
-  const [issuedAt, setIssuedAt] = useState(isoDate(new Date()));
-  const [dueAt, setDueAt] = useState(isoDate(in30));
+  const [issuedAt, setIssuedAt] = useState(isoDay(new Date()));
+  const [dueAt, setDueAt] = useState(isoDay(in30));
   const [status, setStatus] = useState<InvoiceStatus>("unpaid");
   const [error, setError] = useState("");
 
