@@ -3,7 +3,7 @@ import {
   AlertTriangle, Check, ChevronLeft, ChevronRight, CircleHelp, Copy, KeyRound, MapPin, Plug, Plus, Receipt, Undo2, Wallet, X
 } from "lucide-react";
 import type { Appointment, AppointmentStatus, IntegrationInfo, Invoice, InvoiceStatus } from "../types";
-import { Kpi, PageHeading } from "./Pages";
+import { Kpi, PageHeading, RowActions } from "./Pages";
 import { loc, t } from "../i18n";
 import { isoDay, money } from "../lib/format";
 
@@ -29,8 +29,12 @@ export function upcomingUrgent(appointments: Appointment[]) {
     .sort((a, b) => a.starts_at.localeCompare(b.starts_at));
 }
 
-function ApptCard({ a, contact, onStatus, showDate = false }: {
-  a: Appointment; contact: string; onStatus: (id: string, s: AppointmentStatus) => void; showDate?: boolean;
+type ApptHandlers = {
+  onStatus: (id: string, s: AppointmentStatus) => void; onEdit: (a: Appointment) => void; onDelete?: (a: Appointment) => void;
+};
+
+function ApptCard({ a, contact, onStatus, onEdit, onDelete, showDate = false }: ApptHandlers & {
+  a: Appointment; contact: string; showDate?: boolean;
 }) {
   return (
     <div className={`appt-card ${a.urgent ? "urgent" : ""} ${a.status}`}>
@@ -55,14 +59,14 @@ function ApptCard({ a, contact, onStatus, showDate = false }: {
             <button type="button" className="mini-btn" onClick={() => onStatus(a.id, "scheduled")}><Undo2 size={12} /> {t("Rétablir")}</button>
           </>
         )}
+        <RowActions name={a.title} onEdit={() => onEdit(a)} onDelete={onDelete && (() => onDelete(a))} />
       </div>
     </div>
   );
 }
 
-export function Agenda({ appointments, contactName, onStatus, onAdd }: {
-  appointments: Appointment[]; contactName: (id: string | null) => string;
-  onStatus: (id: string, s: AppointmentStatus) => void; onAdd: (date?: string) => void;
+export function Agenda({ appointments, contactName, onAdd, ...handlers }: ApptHandlers & {
+  appointments: Appointment[]; contactName: (id: string | null) => string; onAdd: (date?: string) => void;
 }) {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date()));
   const days = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart]);
@@ -83,7 +87,7 @@ export function Agenda({ appointments, contactName, onStatus, onAdd }: {
         </div>
         {urgent.length > 0 && (
           <div className="urgent-list">
-            {urgent.slice(0, 6).map(a => <ApptCard key={a.id} a={a} contact={contactName(a.contact_id)} onStatus={onStatus} showDate />)}
+            {urgent.slice(0, 6).map(a => <ApptCard key={a.id} a={a} contact={contactName(a.contact_id)} {...handlers} showDate />)}
           </div>
         )}
       </section>
@@ -105,7 +109,7 @@ export function Agenda({ appointments, contactName, onStatus, onAdd }: {
                   <span>{d.toLocaleDateString(loc(), { weekday: "short" })}</span><b>{d.getDate()}</b>
                   <button type="button" className="icon-btn" aria-label={t("Ajouter un rendez-vous le {date}", { date: d.toLocaleDateString(loc()) })} onClick={() => onAdd(isoDay(d))}><Plus size={14} /></button>
                 </div>
-                {list.map(a => <ApptCard key={a.id} a={a} contact={contactName(a.contact_id)} onStatus={onStatus} />)}
+                {list.map(a => <ApptCard key={a.id} a={a} contact={contactName(a.contact_id)} {...handlers} />)}
                 {list.length === 0 && <div className="day-empty">—</div>}
               </div>
             );
@@ -125,9 +129,10 @@ export function isOverdue(i: Invoice) {
   return i.status === "unpaid" && !!i.due_at && i.due_at < isoDay(new Date());
 }
 
-export function Invoices({ invoices, clientName, onStatus, onAdd }: {
+export function Invoices({ invoices, clientName, onStatus, onAdd, onEdit, onDelete }: {
   invoices: Invoice[]; clientName: (i: Invoice) => string;
   onStatus: (id: string, s: InvoiceStatus) => void; onAdd: () => void;
+  onEdit: (i: Invoice) => void; onDelete?: (i: Invoice) => void;
 }) {
   const [filter, setFilter] = useState<InvoiceFilter>("unpaid");
   const unpaid = invoices.filter(i => i.status === "unpaid");
@@ -170,7 +175,7 @@ export function Invoices({ invoices, clientName, onStatus, onAdd }: {
         </div>
         <div className="table-wrap">
           <table>
-            <thead><tr><th>{t("N°")}</th><th>{t("CLIENT")}</th><th>{t("ÉMISE")}</th><th>{t("ÉCHÉANCE")}</th><th>{t("MONTANT")}</th><th>{t("STATUT")}</th><th></th></tr></thead>
+            <thead><tr><th>{t("N°")}</th><th>{t("CLIENT")}</th><th>{t("ÉMISE")}</th><th>{t("ÉCHÉANCE")}</th><th>{t("MONTANT")}</th><th>{t("STATUT")}</th><th></th><th></th></tr></thead>
             <tbody>
               {rows.map(i => (
                 <tr key={i.id}>
@@ -189,6 +194,7 @@ export function Invoices({ invoices, clientName, onStatus, onAdd }: {
                       ? <button type="button" className="row-btn" onClick={() => onStatus(i.id, "unpaid")}>{t("Marquer impayée")}</button>
                       : <button type="button" className="mini-btn" onClick={() => onStatus(i.id, "paid")}><Check size={12} /> {t("Marquer payée")}</button>}
                   </td>
+                  <td><RowActions name={i.number || clientName(i) || t("Facture")} onEdit={() => onEdit(i)} onDelete={onDelete && (() => onDelete(i))} /></td>
                 </tr>
               ))}
             </tbody>

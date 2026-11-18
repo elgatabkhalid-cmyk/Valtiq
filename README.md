@@ -1,4 +1,4 @@
-# VALTIQ CRM — v0.8.0
+# VALTIQ CRM — v0.9.0
 
 CRM multi-organisation en React + TypeScript + Vite, relié à Supabase (authentification, base de données, temps réel).
 Les données arrivent aussi par Make (scénarios de l'équipe Automatisation).
@@ -14,7 +14,7 @@ Les données arrivent aussi par Make (scénarios de l'équipe Automatisation).
 
 ## Fonctionnalités
 - Comptes : inscription, connexion, mot de passe oublié, organisation, invitations d'équipe, rôles propriétaire / admin / commercial
-- Prospects (entreprises + contacts), pipeline d'opportunités, tâches et relances
+- Prospects (entreprises + contacts), pipeline d'opportunités, tâches et relances — création, modification, suppression, filtres
 - Agenda (rendez-vous urgents mis en avant) et factures (à payer, en retard, payées)
 - Boîte de réception : emails classés par IA (module de l'équipe Automatisation), corrections, pièces jointes
 - Automatisations : tâche de premier contact, journal des changements d'étape, relance des opportunités inactives (6 h UTC)
@@ -28,8 +28,8 @@ Les données arrivent aussi par Make (scénarios de l'équipe Automatisation).
 | `src/components/Pages.tsx` | Tableau de bord, prospects, pipeline, tâches, automatisations, assistant, paramètres |
 | `src/components/Business.tsx` | Agenda, factures, intégration Make |
 | `src/components/Inbox.tsx` | Boîte de réception |
-| `src/components/Modals.tsx` | Formulaires de création |
-| `src/components/AuthScreens.tsx`, `LegalPages.tsx`, `LangSwitch.tsx` | Connexion, pages légales, choix de langue |
+| `src/components/Modals.tsx` | Formulaires de création et de modification |
+| `src/components/AuthScreens.tsx`, `LegalPages.tsx`, `LangSwitch.tsx`, `ErrorBoundary.tsx` | Connexion, pages légales, choix de langue, écran d'erreur |
 | `src/lib/api.ts` | Tous les appels à Supabase |
 | `src/lib/format.ts` | Formatage des dates et montants |
 | `src/i18n*.ts` | Traductions (le français sert de clé) |
@@ -101,3 +101,12 @@ Nouvelle page **Boîte de réception** pour suivre le module emails de l'équipe
   code et styles inutilisés retirés ; la compilation refuse désormais les variables inutilisées.
 - Le français devient la langue officielle : langue par défaut du site et des emails ; ES et EN restent disponibles
   (sélecteur FR · ES · EN, choix mémorisé sur l'appareil et dans le compte).
+
+
+### Version 0.9.0 — Modifier, supprimer, filtrer
+
+- **Modifier** prospects, opportunités, tâches, rendez-vous et factures (bouton crayon, formulaire pré-rempli) — tous les rôles.
+- **Supprimer** ces éléments (bouton corbeille, avec confirmation) — propriétaires et administrateurs uniquement, comme l'impose la base.
+  Supprimer un contact ou une opportunité supprime aussi ses tâches et son historique.
+- Prospects : filtre par statut et affichage par pages de 50. Tâches : onglets À faire · Terminées · Toutes.
+- Écran d'erreur global : en cas de plantage, message clair et bouton « Recharger la page » au lieu d'une page blanche.

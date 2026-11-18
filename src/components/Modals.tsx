@@ -3,7 +3,9 @@ import type { FormEvent, ReactNode } from "react";
 import { X } from "lucide-react";
 import { t, tv } from "../i18n";
 import { isoDay } from "../lib/format";
-import type { Company, Contact, InvoiceStatus, Stage, TaskPriority } from "../types";
+import type {
+  AppointmentInput, Company, Contact, DealInput, InvoiceInput, InvoiceStatus, LeadInput, Stage, TaskInput, TaskPriority
+} from "../types";
 
 export function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: ReactNode }) {
   useEffect(() => {
@@ -25,17 +27,22 @@ export function Modal({ title, onClose, children }: { title: string; onClose: ()
 }
 
 type Submit<T> = (v: T) => Promise<string | null>;
+/** Bouton de validation : « Créer… » en création, « Enregistrer » en modification. */
+const submitLabel = (editing: boolean, create: string) => (editing ? t("Enregistrer les modifications") : t(create));
 
-export function LeadForm({ companies, busy, onSubmit }: {
-  companies: Company[]; busy: boolean;
-  onSubmit: Submit<{ firstName: string; lastName: string; company: string; email: string; phone: string; source: string }>;
+const LEAD_SOURCES = ["Prospection", "Site web", "Recommandation", "Réseaux sociaux", "Salon / événement", "Autre"];
+
+export function LeadForm({ companies, busy, initial, onSubmit }: {
+  companies: Company[]; busy: boolean; initial?: LeadInput; onSubmit: Submit<LeadInput>;
 }) {
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [company, setCompany] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
-  const [source, setSource] = useState("Prospection");
+  const [firstName, setFirstName] = useState(initial?.firstName ?? "");
+  const [lastName, setLastName] = useState(initial?.lastName ?? "");
+  const [company, setCompany] = useState(initial?.company ?? "");
+  const [email, setEmail] = useState(initial?.email ?? "");
+  const [phone, setPhone] = useState(initial?.phone ?? "");
+  const [source, setSource] = useState(initial?.source ?? "Prospection");
+  // Source venant de Make ou d'un email : conservée dans la liste
+  const sources = LEAD_SOURCES.includes(source) ? LEAD_SOURCES : [source, ...LEAD_SOURCES];
   const [error, setError] = useState("");
 
   async function submit(e: FormEvent) {
@@ -59,24 +66,23 @@ export function LeadForm({ companies, busy, onSubmit }: {
       <label>{t("Téléphone")}<input value={phone} onChange={e => setPhone(e.target.value)} /></label>
       <label>{t("Source")}
         <select value={source} onChange={e => setSource(e.target.value)}>
-          {["Prospection", "Site web", "Recommandation", "Réseaux sociaux", "Salon / événement", "Autre"].map(s => <option key={s} value={s}>{tv(s)}</option>)}
+          {sources.map(s => <option key={s} value={s}>{tv(s)}</option>)}
         </select>
       </label>
       {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary full" disabled={busy}>{t("Créer le prospect")}</button>
+      <button type="submit" className="primary full" disabled={busy}>{submitLabel(!!initial, "Créer le prospect")}</button>
     </form>
   );
 }
 
-export function DealForm({ companies, contacts, stages, busy, onSubmit }: {
-  companies: Company[]; contacts: Contact[]; stages: Stage[]; busy: boolean;
-  onSubmit: Submit<{ title: string; amount: number; companyId: string | null; contactId: string | null; stageId: string | null }>;
+export function DealForm({ companies, contacts, stages, busy, initial, onSubmit }: {
+  companies: Company[]; contacts: Contact[]; stages: Stage[]; busy: boolean; initial?: DealInput; onSubmit: Submit<DealInput>;
 }) {
-  const [title, setTitle] = useState("");
-  const [amount, setAmount] = useState("");
-  const [companyId, setCompanyId] = useState("");
-  const [contactId, setContactId] = useState("");
-  const [stageId, setStageId] = useState(stages[0]?.id ?? "");
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
+  const [companyId, setCompanyId] = useState(initial?.companyId ?? "");
+  const [contactId, setContactId] = useState(initial?.contactId ?? "");
+  const [stageId, setStageId] = useState(initial?.stageId ?? stages[0]?.id ?? "");
   const [error, setError] = useState("");
   const shownContacts = companyId ? contacts.filter(c => c.company_id === companyId) : contacts;
 
@@ -112,25 +118,23 @@ export function DealForm({ companies, contacts, stages, busy, onSubmit }: {
         </select>
       </label>
       {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary full" disabled={busy}>{t("Créer l'opportunité")}</button>
+      <button type="submit" className="primary full" disabled={busy}>{submitLabel(!!initial, "Créer l'opportunité")}</button>
     </form>
   );
 }
 
 function tomorrow() {
   const d = new Date(); d.setDate(d.getDate() + 1);
-  const p = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return isoDay(d);
 }
 
-export function TaskForm({ contacts, busy, onSubmit }: {
-  contacts: Contact[]; busy: boolean;
-  onSubmit: Submit<{ title: string; dueDate: string; priority: TaskPriority; contactId: string | null }>;
+export function TaskForm({ contacts, busy, initial, onSubmit }: {
+  contacts: Contact[]; busy: boolean; initial?: TaskInput; onSubmit: Submit<TaskInput>;
 }) {
-  const [title, setTitle] = useState("");
-  const [dueDate, setDueDate] = useState(tomorrow());
-  const [priority, setPriority] = useState<TaskPriority>("normal");
-  const [contactId, setContactId] = useState("");
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [dueDate, setDueDate] = useState(initial ? initial.dueDate : tomorrow());
+  const [priority, setPriority] = useState<TaskPriority>(initial?.priority ?? "normal");
+  const [contactId, setContactId] = useState(initial?.contactId ?? "");
   const [error, setError] = useState("");
 
   async function submit(e: FormEvent) {
@@ -157,23 +161,22 @@ export function TaskForm({ contacts, busy, onSubmit }: {
         </select>
       </label>
       {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary full" disabled={busy}>{t("Créer la tâche")}</button>
+      <button type="submit" className="primary full" disabled={busy}>{submitLabel(!!initial, "Créer la tâche")}</button>
     </form>
   );
 }
 
-export function AppointmentForm({ contacts, busy, defaultDate, onSubmit }: {
-  contacts: Contact[]; busy: boolean; defaultDate?: string;
-  onSubmit: Submit<{ title: string; date: string; start: string; end: string; location: string; notes: string; urgent: boolean; contactId: string | null }>;
+export function AppointmentForm({ contacts, busy, defaultDate, initial, onSubmit }: {
+  contacts: Contact[]; busy: boolean; defaultDate?: string; initial?: AppointmentInput; onSubmit: Submit<AppointmentInput>;
 }) {
-  const [title, setTitle] = useState("");
-  const [date, setDate] = useState(defaultDate ?? isoDay(new Date()));
-  const [start, setStart] = useState("09:00");
-  const [end, setEnd] = useState("09:30");
-  const [location, setLocation] = useState("");
-  const [notes, setNotes] = useState("");
-  const [urgent, setUrgent] = useState(false);
-  const [contactId, setContactId] = useState("");
+  const [title, setTitle] = useState(initial?.title ?? "");
+  const [date, setDate] = useState(initial?.date ?? defaultDate ?? isoDay(new Date()));
+  const [start, setStart] = useState(initial?.start ?? "09:00");
+  const [end, setEnd] = useState(initial ? initial.end : "09:30");
+  const [location, setLocation] = useState(initial?.location ?? "");
+  const [notes, setNotes] = useState(initial?.notes ?? "");
+  const [urgent, setUrgent] = useState(initial?.urgent ?? false);
+  const [contactId, setContactId] = useState(initial?.contactId ?? "");
   const [error, setError] = useState("");
 
   async function submit(e: FormEvent) {
@@ -204,22 +207,21 @@ export function AppointmentForm({ contacts, busy, defaultDate, onSubmit }: {
       <label>{t("Notes")}<input value={notes} onChange={e => setNotes(e.target.value)} /></label>
       <label className="check-row"><input type="checkbox" checked={urgent} onChange={e => setUrgent(e.target.checked)} /> {t("Rendez-vous urgent")}</label>
       {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary full" disabled={busy}>{t("Créer le rendez-vous")}</button>
+      <button type="submit" className="primary full" disabled={busy}>{submitLabel(!!initial, "Créer le rendez-vous")}</button>
     </form>
   );
 }
 
-export function InvoiceForm({ companies, busy, onSubmit }: {
-  companies: Company[]; busy: boolean;
-  onSubmit: Submit<{ number: string; clientName: string; amount: number; issuedAt: string; dueAt: string; status: InvoiceStatus }>;
+export function InvoiceForm({ companies, busy, initial, onSubmit }: {
+  companies: Company[]; busy: boolean; initial?: InvoiceInput; onSubmit: Submit<InvoiceInput>;
 }) {
   const in30 = new Date(); in30.setDate(in30.getDate() + 30);
-  const [number, setNumber] = useState("");
-  const [clientName, setClientName] = useState("");
-  const [amount, setAmount] = useState("");
-  const [issuedAt, setIssuedAt] = useState(isoDay(new Date()));
-  const [dueAt, setDueAt] = useState(isoDay(in30));
-  const [status, setStatus] = useState<InvoiceStatus>("unpaid");
+  const [number, setNumber] = useState(initial?.number ?? "");
+  const [clientName, setClientName] = useState(initial?.clientName ?? "");
+  const [amount, setAmount] = useState(initial ? String(initial.amount) : "");
+  const [issuedAt, setIssuedAt] = useState(initial ? initial.issuedAt : isoDay(new Date()));
+  const [dueAt, setDueAt] = useState(initial ? initial.dueAt : isoDay(in30));
+  const [status, setStatus] = useState<InvoiceStatus>(initial?.status ?? "unpaid");
   const [error, setError] = useState("");
 
   async function submit(e: FormEvent) {
@@ -250,7 +252,7 @@ export function InvoiceForm({ companies, busy, onSubmit }: {
         </select>
       </label>
       {error && <div className="form-error" role="alert">{error}</div>}
-      <button type="submit" className="primary full" disabled={busy}>{t("Créer la facture")}</button>
+      <button type="submit" className="primary full" disabled={busy}>{submitLabel(!!initial, "Créer la facture")}</button>
     </form>
   );
 }

@@ -3,7 +3,8 @@ import { t } from "../i18n";
 import type {
   ActivityRow, Appointment, AppointmentStatus, AutomationRule, AutomationRun, Company, IntegrationInfo, Invoice, InvoiceStatus,
   Attachment, ContactCategory, EmailDetail, EmailRow, EmailStatus, Mailbox, MessageType, Contact, Invitation, LeadStatus, Member, OrgInfo, Opportunity, Role, Stage,
-  TaskPriority, TaskRow, TaskStatus, Workspace
+  TaskRow, TaskStatus, Workspace,
+  AppointmentInput, DealInput, EditableKind, InvoiceInput, LeadInput, TaskInput
 } from "../types";
 
 function db() {
@@ -109,40 +110,42 @@ export async function loadWorkspace(orgId: string): Promise<Workspace> {
   };
 }
 
-export async function addLead(
-  orgId: string, userId: string, companies: Company[],
-  input: { firstName: string; lastName: string; company: string; email: string; phone: string; source: string }
-) {
-  let companyId: string | null = null;
-  const name = input.company.trim();
-  if (name) {
-    const existing = companies.find(x => x.name.trim().toLowerCase() === name.toLowerCase());
-    if (existing) companyId = existing.id;
-    else {
-      const row = unwrap(
-        await db().from("companies").insert({ organization_id: orgId, name, owner_id: userId }).select("id").single()
-      );
-      companyId = row.id as string;
-    }
-  }
-  unwrap(
-    await db().from("contacts").insert({
-      organization_id: orgId, company_id: companyId,
-      first_name: input.firstName.trim(), last_name: input.lastName.trim(),
-      email: input.email.trim() || null, phone: input.phone.trim() || null,
-      source: input.source.trim() || "Saisie manuelle", owner_id: userId
-    })
+/** Retrouve l'entreprise par son nom (sans tenir compte des majuscules) ou la crée. */
+async function companyIdFor(orgId: string, userId: string, companies: Company[], companyName: string): Promise<string | null> {
+  const name = companyName.trim();
+  if (!name) return null;
+  const existing = companies.find(x => x.name.trim().toLowerCase() === name.toLowerCase());
+  if (existing) return existing.id;
+  const row = unwrap(
+    await db().from("companies").insert({ organization_id: orgId, name, owner_id: userId }).select("id").single()
   );
+  return row.id as string;
+}
+
+function leadFields(input: LeadInput, companyId: string | null) {
+  return {
+    company_id: companyId, first_name: input.firstName.trim(), last_name: input.lastName.trim(),
+    email: input.email.trim() || null, phone: input.phone.trim() || null, source: input.source.trim() || "Saisie manuelle"
+  };
+}
+
+export async function addLead(orgId: string, userId: string, companies: Company[], input: LeadInput) {
+  const companyId = await companyIdFor(orgId, userId, companies, input.company);
+  unwrap(await db().from("contacts").insert({ organization_id: orgId, owner_id: userId, ...leadFields(input, companyId) }));
+}
+
+export async function updateLead(id: string, orgId: string, userId: string, companies: Company[], input: LeadInput) {
+  const companyId = await companyIdFor(orgId, userId, companies, input.company);
+  unwrap(await db().from("contacts").update(leadFields(input, companyId)).eq("id", id));
 }
 
 export async function updateContactStatus(id: string, status: LeadStatus) {
   unwrap(await db().from("contacts").update({ status }).eq("id", id));
 }
 
-export async function addOpportunity(
-  orgId: string, userId: string,
-  input: { title: string; amount: number; companyId: string | null; contactId: string | null; stageId: string | null }
-) {
+const isClosedStage = (stage: Stage | undefined) => stage?.name === "Gagné" || stage?.name === "Perdu";
+
+export async function addOpportunity(orgId: string, userId: string, input: DealInput) {
   unwrap(
     await db().from("opportunities").insert({
       organization_id: orgId, title: input.title.trim(), amount: input.amount,
@@ -151,8 +154,18 @@ export async function addOpportunity(
   );
 }
 
+export async function updateOpportunity(opp: Opportunity, stages: Stage[], input: DealInput) {
+  const changes: Record<string, unknown> = {
+    title: input.title.trim(), amount: input.amount, company_id: input.companyId, contact_id: input.contactId, stage_id: input.stageId
+  };
+  if (input.stageId !== opp.stage_id) {
+    changes.closed_at = isClosedStage(stages.find(s => s.id === input.stageId)) ? new Date().toISOString() : null;
+  }
+  unwrap(await db().from("opportunities").update(changes).eq("id", opp.id));
+}
+
 export async function moveOpportunity(opp: Opportunity, stage: Stage, userId: string) {
-  const closed = stage.name === "Gagné" || stage.name === "Perdu";
+  const closed = isClosedStage(stage);
   unwrap(
     await db().from("opportunities")
       .update({ stage_id: stage.id, closed_at: closed ? new Date().toISOString() : null })
@@ -166,17 +179,19 @@ export async function setRuleEnabled(id: string, enabled: boolean) {
   unwrap(await db().from("automation_rules").update({ enabled }).eq("id", id));
 }
 
-export async function addTask(
-  orgId: string, userId: string,
-  input: { title: string; dueDate: string; priority: TaskPriority; contactId: string | null }
-) {
-  unwrap(
-    await db().from("tasks").insert({
-      organization_id: orgId, title: input.title.trim(), priority: input.priority,
-      due_at: input.dueDate ? new Date(input.dueDate + "T12:00:00").toISOString() : null,
-      contact_id: input.contactId, owner_id: userId
-    })
-  );
+function taskFields(input: TaskInput) {
+  return {
+    title: input.title.trim(), priority: input.priority, contact_id: input.contactId,
+    due_at: input.dueDate ? new Date(input.dueDate + "T12:00:00").toISOString() : null
+  };
+}
+
+export async function addTask(orgId: string, userId: string, input: TaskInput) {
+  unwrap(await db().from("tasks").insert({ organization_id: orgId, owner_id: userId, ...taskFields(input) }));
+}
+
+export async function updateTask(id: string, input: TaskInput) {
+  unwrap(await db().from("tasks").update(taskFields(input)).eq("id", id));
 }
 
 export async function setTaskStatus(id: string, status: TaskStatus) {
@@ -199,9 +214,16 @@ export async function revokeInvitation(id: string) {
   unwrap(await db().from("invitations").delete().eq("id", id));
 }
 
-// RGPD : suppression définitive d'un contact (ses activités liées sont supprimées en cascade ; les opportunités sont conservées sans contact)
-export async function deleteContact(id: string) {
-  unwrap(await db().from("contacts").delete().eq("id", id));
+// Suppression définitive (réservée aux propriétaires et administrateurs par la base).
+// Contact (RGPD) ou opportunité : ses tâches et activités sont supprimées en cascade ;
+// pour un contact, opportunités, rendez-vous, factures et emails sont conservés sans contact.
+const tableOf: Record<EditableKind, string> = {
+  lead: "contacts", deal: "opportunities", task: "tasks", appointment: "appointments", invoice: "invoices"
+};
+export async function deleteItem(kind: EditableKind, id: string) {
+  const rows = unwrap(await db().from(tableOf[kind]).delete().eq("id", id).select("id")) as unknown[] | null;
+  // Sans droit de suppression, la base ne supprime rien et ne renvoie pas d'erreur : on le signale.
+  if (!rows || rows.length === 0) throw new Error(t("Action refusée : vous n'avez pas les droits nécessaires."));
 }
 
 // RGPD : export complet des données de l'organisation (droit d'accès / portabilité)
@@ -218,20 +240,23 @@ export async function exportOrganization(orgId: string): Promise<Blob> {
 }
 
 // ----- Rendez-vous -----
-export async function addAppointment(
-  orgId: string, userId: string,
-  input: { title: string; date: string; start: string; end: string; location: string; notes: string; urgent: boolean; contactId: string | null }
-) {
+function appointmentFields(input: AppointmentInput) {
   const startsAt = new Date(`${input.date}T${input.start || "09:00"}`);
   const endsAt = input.end ? new Date(`${input.date}T${input.end}`) : null;
-  unwrap(
-    await db().from("appointments").insert({
-      organization_id: orgId, title: input.title.trim(), starts_at: startsAt.toISOString(),
-      ends_at: endsAt ? endsAt.toISOString() : null, location: input.location.trim() || null,
-      notes: input.notes.trim() || null, urgent: input.urgent, contact_id: input.contactId,
-      owner_id: userId, source: "Saisie manuelle"
-    })
-  );
+  return {
+    title: input.title.trim(), starts_at: startsAt.toISOString(), ends_at: endsAt ? endsAt.toISOString() : null,
+    location: input.location.trim() || null, notes: input.notes.trim() || null, urgent: input.urgent, contact_id: input.contactId
+  };
+}
+
+export async function addAppointment(orgId: string, userId: string, input: AppointmentInput) {
+  unwrap(await db().from("appointments").insert({
+    organization_id: orgId, owner_id: userId, source: "Saisie manuelle", ...appointmentFields(input)
+  }));
+}
+
+export async function updateAppointment(id: string, input: AppointmentInput) {
+  unwrap(await db().from("appointments").update(appointmentFields(input)).eq("id", id));
 }
 
 export async function setAppointmentStatus(id: string, status: AppointmentStatus) {
@@ -239,17 +264,19 @@ export async function setAppointmentStatus(id: string, status: AppointmentStatus
 }
 
 // ----- Factures -----
-export async function addInvoice(
-  orgId: string,
-  input: { number: string; clientName: string; amount: number; issuedAt: string; dueAt: string; status: InvoiceStatus }
-) {
-  unwrap(
-    await db().from("invoices").insert({
-      organization_id: orgId, number: input.number.trim() || null, client_name: input.clientName.trim() || null,
-      amount: input.amount, issued_at: input.issuedAt || null, due_at: input.dueAt || null,
-      status: input.status, source: "Saisie manuelle"
-    })
-  );
+function invoiceFields(input: InvoiceInput) {
+  return {
+    number: input.number.trim() || null, client_name: input.clientName.trim() || null, amount: input.amount,
+    issued_at: input.issuedAt || null, due_at: input.dueAt || null, status: input.status
+  };
+}
+
+export async function addInvoice(orgId: string, input: InvoiceInput) {
+  unwrap(await db().from("invoices").insert({ organization_id: orgId, source: "Saisie manuelle", ...invoiceFields(input) }));
+}
+
+export async function updateInvoice(id: string, input: InvoiceInput) {
+  unwrap(await db().from("invoices").update(invoiceFields(input)).eq("id", id));
 }
 
 export async function setInvoiceStatus(id: string, status: InvoiceStatus) {

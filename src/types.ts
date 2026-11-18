@@ -100,3 +100,14 @@ export type TaskView = {
   id: string; title: string; related: string; owner: string; due: string | null;
   status: TaskStatus; priority: TaskPriority; overdue: boolean;
 };
+
+// Valeurs saisies dans les formulaires (création et modification)
+export type LeadInput = { firstName: string; lastName: string; company: string; email: string; phone: string; source: string };
+export type DealInput = { title: string; amount: number; companyId: string | null; contactId: string | null; stageId: string | null };
+export type TaskInput = { title: string; dueDate: string; priority: TaskPriority; contactId: string | null };
+export type AppointmentInput = {
+  title: string; date: string; start: string; end: string; location: string; notes: string; urgent: boolean; contactId: string | null;
+};
+export type InvoiceInput = { number: string; clientName: string; amount: number; issuedAt: string; dueAt: string; status: InvoiceStatus };
+/** Éléments modifiables ou supprimables depuis l'interface. */
+export type EditableKind = "lead" | "deal" | "task" | "appointment" | "invoice";

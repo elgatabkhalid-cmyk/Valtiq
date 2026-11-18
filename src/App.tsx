@@ -5,16 +5,18 @@ import {
 } from "lucide-react";
 import { recoveryInUrl, supabase, supabaseConfigured, supabaseKey, supabaseUrl } from "./lib/supabase";
 import {
-  acceptInvitations, addLead, addOpportunity, addTask, createOrganization, deleteContact, errMsg, exportOrganization, inviteMember, listMemberships,
+  acceptInvitations, addLead, addOpportunity, addTask, createOrganization, deleteItem, errMsg, exportOrganization, inviteMember, listMemberships,
   loadWorkspace, moveOpportunity, revokeInvitation, setRuleEnabled, setTaskStatus, updateContactStatus,
-  addAppointment, addInvoice, correctClassification, setEmailStatus, createIntegrationToken, getIntegrationInfo, revokeIntegrationToken, setAppointmentStatus, setInvoiceStatus
+  addAppointment, addInvoice, correctClassification, setEmailStatus, createIntegrationToken, getIntegrationInfo, revokeIntegrationToken, setAppointmentStatus, setInvoiceStatus,
+  updateAppointment, updateInvoice, updateLead, updateOpportunity, updateTask
 } from "./lib/api";
 import { emptyWorkspace } from "./types";
 import { loc, t, tv, useLang } from "./i18n";
-import { money } from "./lib/format";
+import { isoDay, money } from "./lib/format";
 import { LangSwitch } from "./components/LangSwitch";
 import type {
-  AppointmentStatus, EmailStatus, DealRow, IntegrationInfo, Invoice, InvoiceStatus, LeadRow, LeadStatus, OrgInfo, TaskStatus, TaskView, Workspace
+  AppointmentInput, AppointmentStatus, DealInput, EditableKind, EmailStatus, DealRow, IntegrationInfo, Invoice, InvoiceInput, InvoiceStatus,
+  LeadInput, LeadRow, LeadStatus, OrgInfo, TaskInput, TaskStatus, TaskView, Workspace
 } from "./types";
 import { AuthScreen, ConfigMissing, Loading, NewPasswordScreen, Onboarding } from "./components/AuthScreens";
 import { AppointmentForm, DealForm, InvoiceForm, LeadForm, Modal, TaskForm } from "./components/Modals";
@@ -26,6 +28,18 @@ import type { Page } from "./components/Pages";
 
 type ModalKind = "lead" | "task" | "deal" | "appointment" | "invoice" | null;
 type Notice = { text: string; error: boolean } | null;
+type ItemRef = { kind: EditableKind; id: string; name: string };
+
+const EDIT_TITLES: Record<EditableKind, string> = {
+  lead: "Modifier le prospect", deal: "Modifier l'opportunité", task: "Modifier la tâche",
+  appointment: "Modifier le rendez-vous", invoice: "Modifier la facture"
+};
+const DELETE_TITLES: Record<EditableKind, string> = {
+  lead: "Supprimer ce contact ?", deal: "Supprimer cette opportunité ?", task: "Supprimer cette tâche ?",
+  appointment: "Supprimer ce rendez-vous ?", invoice: "Supprimer cette facture ?"
+};
+/** Heure locale « HH:MM » d'une date ISO. */
+const hhmm = (iso: string) => { const d = new Date(iso); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
 
 const CLOSED_STAGES = ["Gagné", "Perdu"];
 
@@ -218,12 +232,18 @@ export default function App() {
   const onRevoke = (id: string) => { void run(() => revokeInvitation(id)); };
   const onToggleRule = (id: string, enabled: boolean) => { void run(() => setRuleEnabled(id, enabled)); };
   const onToggleTask = (id: string, status: TaskStatus) => { void run(() => setTaskStatus(id, status)); };
-  const [toDelete, setToDelete] = useState<LeadRow | null>(null);
+  // Modification et suppression (contacts, opportunités, tâches, rendez-vous, factures)
+  const [editing, setEditing] = useState<ItemRef | null>(null);
+  const [toRemove, setToRemove] = useState<ItemRef | null>(null);
+  const canDelete = org?.role === "owner" || org?.role === "admin";
   const onConfirmDelete = async () => {
-    if (!toDelete) return;
-    const err = await run(() => deleteContact(toDelete.id), t("Contact supprimé définitivement."));
-    if (!err) setToDelete(null);
+    if (!toRemove) return;
+    const err = await run(() => deleteItem(toRemove.kind, toRemove.id),
+      toRemove.kind === "lead" ? t("Contact supprimé définitivement.") : t("Élément supprimé."));
+    if (!err) setToRemove(null);
   };
+  const saveEdit = (action: () => Promise<void>) =>
+    run(action, t("Modifications enregistrées.")).then(err => { if (!err) setEditing(null); return err; });
   const onExport = async () => {
     if (!orgId) return;
     setBusy(true);
@@ -264,6 +284,51 @@ export default function App() {
     catch (e) { setNotice({ text: errMsg(e), error: true }); }
     finally { setBusy(false); }
   };
+
+  // Formulaire de modification pré-rempli (null si l'élément a disparu entre-temps)
+  function editForm(ref: ItemRef) {
+    if (ref.kind === "lead") {
+      const c = ws.contacts.find(x => x.id === ref.id);
+      if (!c) return null;
+      const initial: LeadInput = {
+        firstName: c.first_name, lastName: c.last_name, company: companyName(c.company_id),
+        email: c.email ?? "", phone: c.phone ?? "", source: c.source ?? "Autre"
+      };
+      return <LeadForm companies={ws.companies} busy={busy} initial={initial}
+        onSubmit={v => saveEdit(async () => { if (orgId && userId) await updateLead(c.id, orgId, userId, ws.companies, v); })} />;
+    }
+    if (ref.kind === "deal") {
+      const o = ws.opportunities.find(x => x.id === ref.id);
+      if (!o) return null;
+      const initial: DealInput = { title: o.title, amount: o.amount, companyId: o.company_id, contactId: o.contact_id, stageId: o.stage_id };
+      return <DealForm companies={ws.companies} contacts={ws.contacts} stages={ws.stages} busy={busy} initial={initial}
+        onSubmit={v => saveEdit(() => updateOpportunity(o, ws.stages, v))} />;
+    }
+    if (ref.kind === "task") {
+      const tk = ws.tasks.find(x => x.id === ref.id);
+      if (!tk) return null;
+      const initial: TaskInput = {
+        title: tk.title, priority: tk.priority, contactId: tk.contact_id, dueDate: tk.due_at ? isoDay(new Date(tk.due_at)) : ""
+      };
+      return <TaskForm contacts={ws.contacts} busy={busy} initial={initial} onSubmit={v => saveEdit(() => updateTask(tk.id, v))} />;
+    }
+    if (ref.kind === "appointment") {
+      const a = ws.appointments.find(x => x.id === ref.id);
+      if (!a) return null;
+      const initial: AppointmentInput = {
+        title: a.title, date: isoDay(new Date(a.starts_at)), start: hhmm(a.starts_at), end: a.ends_at ? hhmm(a.ends_at) : "",
+        location: a.location ?? "", notes: a.notes ?? "", urgent: a.urgent, contactId: a.contact_id
+      };
+      return <AppointmentForm contacts={ws.contacts} busy={busy} initial={initial} onSubmit={v => saveEdit(() => updateAppointment(a.id, v))} />;
+    }
+    const i = ws.invoices.find(x => x.id === ref.id);
+    if (!i) return null;
+    const initial: InvoiceInput = {
+      number: i.number ?? "", clientName: invoiceClient(i), amount: i.amount,
+      issuedAt: i.issued_at ?? "", dueAt: i.due_at ?? "", status: i.status
+    };
+    return <InvoiceForm companies={ws.companies} busy={busy} initial={initial} onSubmit={v => saveEdit(() => updateInvoice(i.id, v))} />;
+  }
 
   // Écrans avant l'application
   if (!supabaseConfigured) return <ConfigMissing />;
@@ -383,15 +448,24 @@ export default function App() {
               onNavigate={setPage} onAddLead={() => setModal("lead")} />
           )}
           {page === "leads" && <Leads leads={filteredLeads} total={leadRows.length} onAdd={() => setModal("lead")} onStatus={onLeadStatus}
-            canDelete={org.role === "owner" || org.role === "admin"} onDelete={setToDelete} />}
-          {page === "pipeline" && <Pipeline deals={dealRows} stages={ws.stages} onMove={onMoveDeal} onAdd={() => setModal("deal")} />}
-          {page === "tasks" && <Tasks tasks={taskViews} onToggle={onToggleTask} onAdd={() => setModal("task")} />}
+            onEdit={l => setEditing({ kind: "lead", id: l.id, name: l.name })}
+            onDelete={canDelete ? l => setToRemove({ kind: "lead", id: l.id, name: l.name }) : undefined} />}
+          {page === "pipeline" && <Pipeline deals={dealRows} stages={ws.stages} onMove={onMoveDeal} onAdd={() => setModal("deal")}
+            onEdit={d => setEditing({ kind: "deal", id: d.id, name: d.title })}
+            onDelete={canDelete ? d => setToRemove({ kind: "deal", id: d.id, name: d.title }) : undefined} />}
+          {page === "tasks" && <Tasks tasks={taskViews} onToggle={onToggleTask} onAdd={() => setModal("task")}
+            onEdit={tk => setEditing({ kind: "task", id: tk.id, name: tk.title })}
+            onDelete={canDelete ? tk => setToRemove({ kind: "task", id: tk.id, name: tk.title }) : undefined} />}
           {page === "inbox" && <InboxPage emails={ws.emails} types={ws.messageTypes} categories={ws.categories} mailboxes={ws.mailboxes}
             contacts={ws.contacts} tasks={ws.tasks} appointments={ws.appointments} opportunities={ws.opportunities} busy={busy}
             onCorrect={onCorrectEmail} onStatus={onEmailStatus} onNavigate={setPage} />}
           {page === "agenda" && <Agenda appointments={ws.appointments} contactName={contactName} onStatus={onApptStatus}
-            onAdd={d => { setApptDate(d); setModal("appointment"); }} />}
-          {page === "invoices" && <Invoices invoices={ws.invoices} clientName={invoiceClient} onStatus={onInvoiceStatus} onAdd={() => setModal("invoice")} />}
+            onAdd={d => { setApptDate(d); setModal("appointment"); }}
+            onEdit={a => setEditing({ kind: "appointment", id: a.id, name: a.title })}
+            onDelete={canDelete ? a => setToRemove({ kind: "appointment", id: a.id, name: a.title }) : undefined} />}
+          {page === "invoices" && <Invoices invoices={ws.invoices} clientName={invoiceClient} onStatus={onInvoiceStatus} onAdd={() => setModal("invoice")}
+            onEdit={i => setEditing({ kind: "invoice", id: i.id, name: i.number || invoiceClient(i) })}
+            onDelete={canDelete ? i => setToRemove({ kind: "invoice", id: i.id, name: i.number || invoiceClient(i) || t("Facture") }) : undefined} />}
           {page === "automation" && (
             <Automation rules={ws.rules} runs={ws.runs} canEdit={org.role === "owner" || org.role === "admin"} onToggle={onToggleRule} />
           )}
@@ -410,13 +484,20 @@ export default function App() {
           <span className="footer-status"><i /> {t("Version de développement")}</span>
         </footer>
       </main>
-      {toDelete && (
-        <Modal title={t("Supprimer ce contact ?")} onClose={() => setToDelete(null)}>
-          <p>{t("« {name} » sera supprimé définitivement, ainsi que son historique d'activités. Cette action est irréversible.", { name: toDelete.name })}</p>
+      {toRemove && (
+        <Modal title={t(DELETE_TITLES[toRemove.kind])} onClose={() => setToRemove(null)}>
+          <p>{toRemove.kind === "lead" || toRemove.kind === "deal"
+            ? t("« {name} » sera supprimé définitivement, ainsi que ses tâches et son historique d'activités. Cette action est irréversible.", { name: toRemove.name })
+            : t("« {name} » sera supprimé définitivement. Cette action est irréversible.", { name: toRemove.name })}</p>
           <div className="modal-actions">
-            <button type="button" className="secondary" onClick={() => setToDelete(null)}>{t("Annuler")}</button>
+            <button type="button" className="secondary" onClick={() => setToRemove(null)}>{t("Annuler")}</button>
             <button type="button" className="primary danger" disabled={busy} onClick={onConfirmDelete}>{t("Supprimer définitivement")}</button>
           </div>
+        </Modal>
+      )}
+      {editing && (
+        <Modal title={t(EDIT_TITLES[editing.kind])} onClose={() => setEditing(null)}>
+          {editForm(editing)}
         </Modal>
       )}
       {modal === "lead" && (
