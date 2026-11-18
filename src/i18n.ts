@@ -1,4 +1,4 @@
-// Traduction FR / ES / EN.
+// Traduction FR / ES / EN. Le français est la langue officielle du site ; l'espagnol et l'anglais sont proposés en plus.
 // Les textes sont écrits en français dans le code et servent de clé ; ES et EN contiennent leurs traductions.
 // Variables : t("{n} contact(s)", { n: 3 }).
 import { useSyncExternalStore } from "react";
@@ -14,10 +14,7 @@ function detect(): Lang {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved === "fr" || saved === "es" || saved === "en") return saved;
   } catch { /* stockage indisponible */ }
-  const nav = typeof navigator !== "undefined" ? navigator.language.toLowerCase() : "";
-  if (nav.startsWith("fr")) return "fr";
-  if (nav.startsWith("en")) return "en";
-  return "es";
+  return "fr"; // langue officielle par défaut ; l'utilisateur peut choisir ES ou EN (choix mémorisé)
 }
 
 let current: Lang = detect();

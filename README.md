@@ -19,7 +19,7 @@ Les données arrivent aussi par Make (scénarios de l'équipe Automatisation).
 - Boîte de réception : emails classés par IA (module de l'équipe Automatisation), corrections, pièces jointes
 - Automatisations : tâche de premier contact, journal des changements d'étape, relance des opportunités inactives (6 h UTC)
 - Intégration Make par clé d'organisation ; données mises à jour en temps réel
-- Trois langues (ES / FR / EN), pages légales Espagne, export RGPD et suppression de contact
+- Français (langue officielle, par défaut) + espagnol et anglais au choix ; pages légales Espagne, export RGPD et suppression de contact
 
 ## Organisation du code
 | Dossier / fichier | Contenu |
@@ -99,3 +99,5 @@ Nouvelle page **Boîte de réception** pour suivre le module emails de l'équipe
 - Migrations rangées dans `supabase/migrations/` (copies exactes de la base) ; relances planifiées versionnées.
 - Chargement des données plus rapide (toutes les requêtes en parallèle) ; formatage des montants et dates centralisé ;
   code et styles inutilisés retirés ; la compilation refuse désormais les variables inutilisées.
+- Le français devient la langue officielle : langue par défaut du site et des emails ; ES et EN restent disponibles
+  (sélecteur FR · ES · EN, choix mémorisé sur l'appareil et dans le compte).
