@@ -12,7 +12,7 @@ export const LEGAL = {
   aiProvider: "[A COMPLETAR · proveedor de IA usado para clasificar los correos]",
   /** Meses de conservación tras el fin del contrato (null = a completar). */
   retentionMonths: null as number | null,
-  lastUpdate: "2026-11-16"
+  lastUpdate: "2026-11-24"
 };
 
 export const isPending = (v: string | number | null) => v === null || (typeof v === "string" && v.startsWith("["));
