@@ -109,11 +109,15 @@ en-têtes `apikey` (clé publique) et `Content-Type: application/json`, jeton da
 
 Conséquence à traiter : le contrat de sous-traitance, le registre des traitements et la politique de confidentialité
 décrivent aujourd'hui « une base partagée, séparée par organisation ». Ils doivent dire « une base par client »
-(à corriger en L6-10).
+(à corriger en L6-10). Fait le 24/11/2026 pour la politique de confidentialité du site (ES / FR / EN) ; reste le
+contrat de sous-traitance et le registre des traitements.
 
 ---
 
-## L1-09 — Un site Netlify par client ou un site unique (D-10) — proposition, à valider avec Soufyane
+## L1-09 — Un site Netlify par client ou un site unique (D-10) — décidé le 24/11/2026
+
+**Décision (Khalid et Soufyane) : un site Netlify et un projet Supabase par client**, pour mieux protéger les données.
+Procédure de mise en service : `docs/nouveau-client.md`.
 
 | | Un site par client (recommandé) | Un site unique |
 | --- | --- | --- |
@@ -141,7 +145,7 @@ par client. À réexaminer au bilan à 10 clients (L11-06).
 ## Décisions à prendre ensemble (récapitulatif)
 
 - [x] D-04 : jeton haché sans HMAC pour la démo et les pilotes (décidé le 18/11/2026)
-- [ ] D-10 : un site Netlify par client
+- [x] D-10 : un site Netlify et un projet Supabase par client (décidé le 24/11/2026)
 - [ ] L1-07 : « Valtiq » = développement + démo ; projet central = tableau partagé au début
 - [ ] Passer le dépôt GitHub en privé lors du transfert vers l'organisation `valtiq`
 - [ ] Qui applique les migrations de base (règle « seul Khalid modifie la base ») : les migrations v0.6 et v0.7 ont été appliquées par l'équipe Automatisation

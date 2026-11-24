@@ -34,7 +34,7 @@ Les données arrivent aussi par Make (scénarios de l'équipe Automatisation).
 | `src/lib/format.ts` | Formatage des dates et montants |
 | `src/i18n*.ts` | Traductions (le français sert de clé) |
 | `supabase/migrations/` | Migrations de la base, au format CLI Supabase |
-| `docs/` | Sécurité, vérifications et décisions |
+| `docs/` | Sécurité, vérifications et décisions, mise en service d'un nouveau client (`nouveau-client.md`) |
 
 ## Historique des versions
 
@@ -118,3 +118,5 @@ Nouvelle page **Boîte de réception** pour suivre le module emails de l'équipe
   recopié dans les fiches partagées ; l'export RGPD ne contient que les emails autorisés ; seul le propriétaire de
   l'organisation peut changer la visibilité ou le propriétaire d'une boîte ; nouveaux emails affichés en temps réel.
 - Site : politique de sécurité du contenu (CSP) ; serveur de développement limité à l'ordinateur local.
+- Décision D-10 : un site Netlify et un projet Supabase par client. Procédure dans `docs/nouveau-client.md` ;
+  politique de confidentialité mise à jour en conséquence.

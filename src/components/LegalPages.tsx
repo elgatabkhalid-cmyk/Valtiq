@@ -133,8 +133,9 @@ function Privacidad() {
       </p>
       <h2>8. Seguridad</h2>
       <p>
-        Las comunicaciones están cifradas (HTTPS). Los datos están separados por organización en la propia base de
-        datos y el acceso depende del rol de cada usuario.
+        Las comunicaciones están cifradas (HTTPS). Cada cliente dispone de su propia base de datos y de su propio
+        acceso a la aplicación, separados de los de los demás clientes. Dentro de cada base, los datos están separados
+        por organización y el acceso depende del rol de cada usuario.
       </p>
       <h2>9. Cambios</h2>
       <p>Esta política puede cambiar; la fecha de la última actualización figura al final de la página.</p>
@@ -227,8 +228,9 @@ function Confidentialite() {
       </p>
       <h2>8. Sécurité</h2>
       <p>
-        Les échanges sont chiffrés (HTTPS). Les données sont cloisonnées par organisation au niveau de la base de
-        données et les accès dépendent du rôle de chaque utilisateur.
+        Les échanges sont chiffrés (HTTPS). Chaque client dispose de sa propre base de données et de son propre accès
+        à l'application, séparés de ceux des autres clients. Dans chaque base, les données sont cloisonnées par
+        organisation et les accès dépendent du rôle de chaque utilisateur.
       </p>
       <h2>9. Modifications</h2>
       <p>Cette politique peut évoluer ; la date de dernière mise à jour figure en bas de page.</p>
@@ -320,8 +322,9 @@ function PrivacyPolicy() {
       </p>
       <h2>8. Security</h2>
       <p>
-        Connections are encrypted (HTTPS). Data is separated by organisation within the database, and access depends on
-        each user's role.
+        Connections are encrypted (HTTPS). Each client has its own database and its own access to the application,
+        separate from those of other clients. Within each database, data is separated by organisation and access
+        depends on each user's role.
       </p>
       <h2>9. Changes</h2>
       <p>This policy may change; the date of the last update is shown at the bottom of the page.</p>
