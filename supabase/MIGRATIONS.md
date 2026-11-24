@@ -23,8 +23,9 @@ du projet `znzdvhfczkhyubkjqvow`. Pour recréer une base : `supabase link --proj
 | 13 | 20261116020606 | v0_7_1_routage_garde_message_court | Automatisation |
 | 14 | 20261118140016 | v0_8_securite_fonctions | CRM |
 | 15 | 20261118141431 | v0_8_1_cron_relances ² | CRM |
+| 16 | 20261124011215 | v0_10_boites_privees ³ | CRM (validé par l'Automatisation) |
 
-Les fichiers 1 à 15 sont une **copie exacte** du SQL enregistré dans Supabase, vérifiée le 18/11/2026 par
+Les fichiers 1 à 16 sont une **copie exacte** du SQL enregistré dans Supabase, vérifiée le 18/11/2026 (le 24/11/2026 pour le 16) par
 comparaison de `md5sum <fichier>` avec `select version, md5(statements[1]) from supabase_migrations.schema_migrations` :
 
 ```
@@ -43,6 +44,7 @@ a5d7d41b1d2cfc198d7d3be3e79162e7  20261115232128_v0_6_emails_03_securite.sql
 7a9f880666a495a054e4e029ac1aa815  20261116020606_v0_7_1_routage_garde_message_court.sql
 9e263d2b0313bfdf8eda122900b2a54a  20261118140016_v0_8_securite_fonctions.sql
 2a44d0e34e68bf6362fd5e6ec1f1bd99  20261118141431_v0_8_1_cron_relances.sql
+7bd416269ffb3d77de99320a2a45ac6e  20261124011215_v0_10_boites_privees.sql
 ```
 
 ¹ Schéma de base, exécuté à l'origine dans le SQL Editor (ancien `schema_v0_2.sql`). Il a été inscrit comme
@@ -53,6 +55,8 @@ Le job `valtiq-purge-emails` est créé par la migration 11.
 
 Les anciens fichiers `supabase/migration_v0_*.sql` (dont les versions v0_3 à v0_5 ne correspondaient pas exactement
 à ce qui avait été appliqué) ont été remplacés par ce dossier ; ils restent consultables dans l'historique Git.
+³ Confidentialité des boîtes mail privées (audit du 18/11/2026) : routage sans recopie du contenu, export RGPD filtré,
+visibilité et propriétaire d'une boîte modifiables par le seul owner, table `emails` en temps réel. Voir `docs/securite.md`.
 
 ## Règles de travail
 

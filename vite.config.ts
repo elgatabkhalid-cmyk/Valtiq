@@ -3,7 +3,8 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
-  server: { host: "0.0.0.0", port: 5173 },
+  // Serveur de développement accessible seulement depuis cet ordinateur (ajouter --host pour un test sur mobile)
+  server: { host: "localhost", port: 5173 },
   build: {
     rollupOptions: {
       output: {

@@ -1,4 +1,4 @@
-# VALTIQ CRM — v0.9.0
+# VALTIQ CRM — v0.10.0
 
 CRM multi-organisation en React + TypeScript + Vite, relié à Supabase (authentification, base de données, temps réel).
 Les données arrivent aussi par Make (scénarios de l'équipe Automatisation).
@@ -110,3 +110,11 @@ Nouvelle page **Boîte de réception** pour suivre le module emails de l'équipe
   Supprimer un contact ou une opportunité supprime aussi ses tâches et son historique.
 - Prospects : filtre par statut et affichage par pages de 50. Tâches : onglets À faire · Terminées · Toutes.
 - Écran d'erreur global : en cas de plantage, message clair et bouton « Recharger la page » au lieu d'une page blanche.
+
+
+### Version 0.10.0 — Confidentialité des boîtes mail privées
+
+- Base (migration v0.10, validée par l'équipe Automatisation) : le contenu d'un email d'une boîte privée n'est plus
+  recopié dans les fiches partagées ; l'export RGPD ne contient que les emails autorisés ; seul le propriétaire de
+  l'organisation peut changer la visibilité ou le propriétaire d'une boîte ; nouveaux emails affichés en temps réel.
+- Site : politique de sécurité du contenu (CSP) ; serveur de développement limité à l'ordinateur local.
