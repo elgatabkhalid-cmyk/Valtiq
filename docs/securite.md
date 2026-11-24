@@ -89,9 +89,38 @@ Bucket `pieces-jointes` **privé**, 25 Mo maximum par fichier. Un fichier n'est 
 Test : membre de l'organisation propriétaire = 1 fichier visible ; membre d'une autre organisation = 0 ;
 anonyme = 0. Le CRM télécharge par URL signée valable 2 minutes et journalise chaque téléchargement.
 
+## Boîtes mail privées — v0.10 (24/11/2026)
+
+Correction de deux failles relevées par l'audit externe du 18/11/2026, validée par l'équipe Automatisation.
+Une boîte `privee` n'est visible que par son propriétaire et par l'owner de l'organisation (`peut_acceder_boite`).
+
+| Faille | Correction |
+| --- | --- |
+| `_email_router_metier` recopiait objet, résumé, extrait et expéditeur d'un email privé dans des fiches lisibles par tous | Boîte privée : aucune recopie ; seule une tâche neutre « Email reçu dans une boîte privée » est créée pour le propriétaire de la boîte |
+| `exporter_donnees_contact` (admin) exportait les emails de toutes les boîtes | Seuls les emails des boîtes accessibles sont exportés ; `emails_non_exportes` indique combien ont été écartés |
+| Un admin pouvait changer `visibilite` ou `proprietaire_id` d'une boîte et se donner accès | Trigger `boites_mail_confidentialite` : réservé à l'owner (les appels serveur sans utilisateur restent permis) |
+
+Tests du 24/11/2026 (boîte privée de test, transaction annulée) : 13/13 conformes — aucune fiche partagée ne contient
+le contenu privé ; boîte équipe inchangée ; export admin 1 email sur 2 sans contenu privé ; export owner 2 sur 2 ;
+admin refusé pour la visibilité et le propriétaire, autorisé pour le libellé ; admin sans lecture de l'email privé ;
+owner autorisé ; commercial refusé à l'export.
+
+Point restant, hors périmètre de l'audit : la création automatique d'un contact à partir de l'expéditeur
+(`email_appliquer_classification`) fonctionne aussi pour une boîte privée ; le nom et l'adresse de l'expéditeur
+deviennent alors une fiche contact partagée. À décider avec l'équipe Automatisation avant d'ouvrir des boîtes privées.
+
+## En-têtes HTTP du site
+
+`public/_headers` : `X-Frame-Options`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy` et, depuis
+la v0.10, une **Content-Security-Policy** : scripts, styles et polices du site uniquement ; connexions limitées au site
+et à `*.supabase.co` (HTTPS et WebSocket) ; aucune intégration dans un cadre. Vérifiée le 24/11/2026 sur toutes les
+pages (FR / ES / EN, mobile, pages légales, connexion) : aucune violation.
+Le serveur de développement (`npm run dev`) n'écoute plus que sur l'ordinateur local.
+
 ## Alertes Supabase conservées (L3-15)
 
 Relancées le 18/11/2026 après la migration v0.8 : 21 alertes WARN de sécurité (29 avant), toutes justifiées.
+Inchangées après la v0.10 (24/11/2026).
 
 | Alerte | Nombre | Justification |
 | --- | --- | --- |
