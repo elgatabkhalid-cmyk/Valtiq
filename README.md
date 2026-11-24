@@ -7,7 +7,8 @@ Les données arrivent aussi par Make (scénarios de l'équipe Automatisation).
 1. `npm install`
 2. Copier `.env.example` en `.env` et renseigner `VITE_SUPABASE_URL` et `VITE_SUPABASE_ANON_KEY`
    (clé « publishable » uniquement — jamais la clé secrète).
-3. Base de données : exécuter, dans l'ordre, les fichiers de `supabase/migrations/` (voir `supabase/MIGRATIONS.md`),
+3. Base de données : exécuter `supabase/prerequis-nouveau-projet.sql`, puis, dans l'ordre, les fichiers de
+   `supabase/migrations/` (voir `supabase/MIGRATIONS.md` et `docs/nouveau-client.md`),
    par exemple avec la CLI : `supabase link --project-ref <ref>` puis `supabase db push`.
    Tests : `supabase/rls_tests.sql` et `supabase/invitations_tests.sql`. Gardez « Confirm email » activé.
 4. `npm run dev` puis ouvrir http://localhost:5173 — `npm run build` produit `dist/` pour Netlify.
