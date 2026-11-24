@@ -2,7 +2,8 @@
 
 Toutes les migrations sont dans `supabase/migrations/`, au format de la CLI Supabase
 (`<version>_<nom>.sql`). La version est celle enregistrée dans `supabase_migrations.schema_migrations`
-du projet `znzdvhfczkhyubkjqvow`. Pour recréer une base : `supabase link --project-ref <ref>` puis `supabase db push`
+du projet `znzdvhfczkhyubkjqvow`. Pour recréer une base : exécuter d'abord `supabase/prerequis-nouveau-projet.sql` dans le SQL Editor, puis
+`supabase link --project-ref <ref>` et `supabase db push` (testé sur un projet vierge le 24/11/2026, voir `docs/nouveau-client.md`)
 (ou exécuter les fichiers dans l'ordre dans le SQL Editor).
 
 | # | Version | Nom | Auteur |

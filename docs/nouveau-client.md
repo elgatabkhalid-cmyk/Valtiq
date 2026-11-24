@@ -19,8 +19,9 @@ Durée estimée : 30 à 45 minutes. Qui : Khalid (base, site), puis Soufyane (Ma
 
 1. supabase.com → **New project** : nom `valtiq-<client>`, région **Europe (Paris ou Francfort)**, mot de passe de
    base généré et rangé dans le gestionnaire de mots de passe (jamais dans le dépôt).
-2. **Database → Extensions** : activer **pg_cron**. Obligatoire avant l'étape suivante : la migration
-   `20261115232142` planifie une tâche alors que l'extension n'est activée qu'à la migration `20261118141431`.
+2. **SQL Editor** : coller et exécuter `supabase/prerequis-nouveau-projet.sql`. Il active pg_cron et la protection
+   RLS automatique, deux réglages du projet « Valtiq » absents des migrations. Sans ce script, l'installation
+   s'arrête à la migration 12 (« schema "cron" does not exist »), puis à la 15 (`rls_auto_enable()` introuvable).
 3. Installer le schéma depuis le dépôt, avec la CLI Supabase :
    ```bash
    supabase link --project-ref <ref-du-projet>
@@ -74,7 +75,16 @@ Make (rotation, L5-07), responsable côté client, contrat de sous-traitance sig
   (`supabase link` puis `supabase db push`, projet par projet), puis notée dans `supabase/MIGRATIONS.md`.
   Appliquer d'abord sur le projet « Valtiq » (démo), vérifier, puis sur les clients.
 
-## Points non encore vérifiés
+## Essai sur un projet vierge (24/11/2026)
 
-L'installation complète des migrations sur un projet **vierge** n'a jamais été testée : la base actuelle a été
-construite au fil des versions. À faire une fois, sur un projet temporaire, avant le premier vrai client.
+Projet temporaire `valtiq-essai-temporaire` (Paris), migrations téléchargées depuis GitHub et vérifiées par MD5 :
+
+- sans prérequis : arrêt à la migration 12 (pg_cron absent), puis à la 15 (`rls_auto_enable()` absente) ;
+- avec `supabase/prerequis-nouveau-projet.sql` : **les 17 migrations s'installent** ;
+- comparaison avec la base « Valtiq » : **592 éléments identiques** (25 tables, 283 colonnes, 56 fonctions avec leurs
+  droits, 77 politiques RLS, 100 index, 15 triggers, 24 droits sur tables, 2 tâches planifiées, 9 tables en temps réel,
+  le bucket des pièces jointes) ;
+- alertes de sécurité Supabase : les mêmes que sur « Valtiq ».
+
+Non couvert par l'essai : la configuration Auth (étapes 1.5 à 1.7), le site Netlify et Make, à vérifier lors du
+premier vrai client.
